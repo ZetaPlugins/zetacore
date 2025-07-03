@@ -1,0 +1,19 @@
+name: plugin-test
+version: '1.0.0'
+main: com.zetaplugins.pluginTest.PluginTest
+api-version: '1.21'
+load: STARTUP
+authors: [Kartoffelchipss]
+description: A modern essentials plugin for Minecraft
+website: strassburger.org
+
+commands:
+  testpldebug:
+    description: Debug command for testing purposes
+    permission: testplugin.debug
+    permission-message: You do not have permission to use this command
+
+permissions:
+  testplugin.debug:
+    description: Allows the player to use debug commands
+    default: op

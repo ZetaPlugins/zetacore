@@ -1,10 +1,10 @@
-package com.zetaplugins.debug.command;
+package com.zetaplugins.zetacore.debug.command;
 
-import com.zetaplugins.debug.ReportDataCollector;
-import com.zetaplugins.debug.ReportFileWriter;
-import com.zetaplugins.debug.data.DebugReport;
-import com.zetaplugins.debug.uploader.MclogsReportUploader;
-import com.zetaplugins.services.MessageService;
+import com.zetaplugins.zetacore.debug.ReportDataCollector;
+import com.zetaplugins.zetacore.debug.ReportFileWriter;
+import com.zetaplugins.zetacore.debug.data.DebugReport;
+import com.zetaplugins.zetacore.debug.uploader.MclogsReportUploader;
+import com.zetaplugins.zetacore.services.MessageService;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;

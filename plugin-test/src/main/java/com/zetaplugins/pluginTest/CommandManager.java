@@ -1,6 +1,6 @@
 package com.zetaplugins.pluginTest;
 
-import com.zetaplugins.debug.command.DebugCommandHandler;
+import com.zetaplugins.zetacore.debug.command.DebugCommandHandler;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabCompleter;

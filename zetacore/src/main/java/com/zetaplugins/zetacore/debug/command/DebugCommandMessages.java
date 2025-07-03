@@ -1,4 +1,4 @@
-package com.zetaplugins.debug.command;
+package com.zetaplugins.zetacore.debug.command;
 
 /**
  * DebugCommandMessages is a class that holds the messages used in the debug command.

@@ -1,4 +1,4 @@
-package com.zetaplugins.debug.data;
+package com.zetaplugins.zetacore.debug.data;
 
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;

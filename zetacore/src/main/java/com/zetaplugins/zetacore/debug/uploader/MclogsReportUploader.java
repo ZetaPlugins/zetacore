@@ -1,6 +1,6 @@
-package com.zetaplugins.debug.uploader;
+package com.zetaplugins.zetacore.debug.uploader;
 
-import com.zetaplugins.debug.data.DebugReport;
+import com.zetaplugins.zetacore.debug.data.DebugReport;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.BufferedReader;

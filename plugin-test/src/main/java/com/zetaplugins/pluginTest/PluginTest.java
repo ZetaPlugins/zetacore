@@ -1,9 +1,8 @@
 package com.zetaplugins.pluginTest;
 
-import com.zetaplugins.debug.ReportDataCollector;
-import com.zetaplugins.debug.ReportFileWriter;
-import com.zetaplugins.debug.data.DebugReport;
-import com.zetaplugins.debug.uploader.MclogsReportUploader;
+import com.zetaplugins.zetacore.debug.ReportDataCollector;
+import com.zetaplugins.zetacore.debug.ReportFileWriter;
+import com.zetaplugins.zetacore.debug.data.DebugReport;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;

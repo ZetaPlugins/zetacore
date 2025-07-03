@@ -1,4 +1,4 @@
-package com.zetaplugins.services;
+package com.zetaplugins.zetacore.services;
 
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;

@@ -1,4 +1,4 @@
-package com.zetaplugins.services;
+package com.zetaplugins.zetacore.services;
 
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;

@@ -1,6 +1,6 @@
-package com.zetaplugins.debug;
+package com.zetaplugins.zetacore.debug;
 
-import com.zetaplugins.debug.data.DebugReport;
+import com.zetaplugins.zetacore.debug.data.DebugReport;
 
 import java.io.BufferedWriter;
 import java.io.File;

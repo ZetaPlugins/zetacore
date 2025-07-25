@@ -21,7 +21,7 @@ import java.util.stream.Collectors;
  * and generates a {@link DebugReport} object containing this data.
  */
 public final class ReportDataCollector {
-    private static int MAX_LOG_LINES = 50_000;
+    private static final int MAX_LOG_LINES = 50_000;
 
     private final JavaPlugin plugin;
     private final File pluginFile;

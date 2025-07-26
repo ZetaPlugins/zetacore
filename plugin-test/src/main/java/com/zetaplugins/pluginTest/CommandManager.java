@@ -5,6 +5,9 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.PluginCommand;
 import org.bukkit.command.TabCompleter;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public final class CommandManager {
     private final PluginTest plugin;
 
@@ -16,10 +19,12 @@ public final class CommandManager {
      * Registers all commands
      */
     public void registerCommands() {
+        Map<String, String> configs = new HashMap<>();
+        configs.put("config.yml", plugin.getConfig().saveToString());
         registerCommand(
                 "testpldebug",
-                new DebugCommandHandler(plugin, plugin.getPluginFile(), "testplugin.debug"),
-                new DebugCommandHandler(plugin, plugin.getPluginFile(), "testplugin.debug")
+                new DebugCommandHandler("MODRINTHID", plugin, plugin.getPluginFile(), "testplugin.debug", configs),
+                new DebugCommandHandler("MODRINTHID", plugin, plugin.getPluginFile(), "testplugin.debug", configs)
         );
     }
 

@@ -26,17 +26,20 @@ public final class ReportDataCollector {
     private final JavaPlugin plugin;
     private final File pluginFile;
     private final Map<String, String> configs;
+    private final String modrinthId;
 
     /**
      * Creates a new ReportDataCollector instance.
+     * @param modrinthId the Modrinth ID of the plugin, used to identify the report
      * @param plugin the JavaPlugin instance for which the report is being collected
      * @param pluginFile the file of the plugin, used to generate a hash. Can be obtained using JavaPlugin#getFile(} inside a plugin's main class.
      * @param configs a map of configuration settings, where the key is the configuration file name and the value is the configuration saved as a string
      */
-    public ReportDataCollector(JavaPlugin plugin, File pluginFile, Map<String, String> configs) {
+    public ReportDataCollector(String modrinthId, JavaPlugin plugin, File pluginFile, Map<String, String> configs) {
         this.plugin = plugin;
         this.pluginFile = pluginFile;
         this.configs = configs;
+        this.modrinthId = modrinthId;
     }
 
     /**
@@ -46,8 +49,8 @@ public final class ReportDataCollector {
      * @param configs a map of configuration settings, where the key is the configuration file name and the value is the configuration saved as a string
      * @return a DebugReport object containing the collected data
      */
-    public static DebugReport collect(JavaPlugin plugin, File pluginFile, Map<String, String> configs) {
-        return new ReportDataCollector(plugin, pluginFile, configs).collectReport();
+    public static DebugReport collect(String modrinthId, JavaPlugin plugin, File pluginFile, Map<String, String> configs) {
+        return new ReportDataCollector(modrinthId, plugin, pluginFile, configs).collectReport();
     }
 
     public DebugReport collectReport() {
@@ -70,6 +73,7 @@ public final class ReportDataCollector {
                 .collect(Collectors.toSet());
 
         return new DebugReport(
+                modrinthId,
                 now,
                 pluginName,
                 pluginVersion,

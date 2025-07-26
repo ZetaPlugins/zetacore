@@ -7,6 +7,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
+import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
@@ -23,7 +24,7 @@ public final class MclogsReportUploader extends ReportUploader {
     @Override
     public String uploadReport(DebugReport debugReport) {
         try {
-            HttpURLConnection connection = getHttpURLConnection();
+            HttpURLConnection connection = getHttpURLConnection(new URL("https://api.mclo.gs/1/log"));
             connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
 
             // Encode content for HTTP request

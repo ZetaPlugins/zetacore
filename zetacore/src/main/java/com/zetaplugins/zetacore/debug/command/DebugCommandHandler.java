@@ -3,7 +3,7 @@ package com.zetaplugins.zetacore.debug.command;
 import com.zetaplugins.zetacore.debug.ReportDataCollector;
 import com.zetaplugins.zetacore.debug.ReportFileWriter;
 import com.zetaplugins.zetacore.debug.data.DebugReport;
-import com.zetaplugins.zetacore.debug.uploader.MclogsReportUploader;
+import com.zetaplugins.zetacore.debug.uploader.ZetaDebugReportUploader;
 import com.zetaplugins.zetacore.services.MessageService;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -16,6 +16,7 @@ import org.jetbrains.annotations.Nullable;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
 import java.util.logging.Level;
 
 /**
@@ -26,29 +27,48 @@ public final class DebugCommandHandler implements CommandExecutor, TabCompleter 
     private final File pluginFile;
     private final String permission;
     private final DebugCommandMessages messages;
+    private final String modrinthId;
+    private final Map<String, String> configs;
 
     /**
      * Constructor for DebugCommandHandler.
+     * @param modrinthId the Modrinth ID of the plugin, used to identify the report
      * @param plugin the JavaPlugin instance
      * @param pluginFile the file of the plugin, used to generate a hash. Can be obtained using JavaPlugin#getFile(} inside a plugin's main class.
      * @param permission the permission required to execute the command
      */
-    public DebugCommandHandler(JavaPlugin plugin, File pluginFile, String permission) {
-        this(plugin, pluginFile, permission, new DebugCommandMessages());
+    public DebugCommandHandler(String modrinthId, JavaPlugin plugin, File pluginFile, String permission) {
+        this(modrinthId, plugin, pluginFile, permission, null, new DebugCommandMessages());
     }
 
     /**
      * Constructor for DebugCommandHandler.
+     * @param modrinthId the Modrinth ID of the plugin, used to identify the report
      * @param plugin the JavaPlugin instance
      * @param pluginFile the file of the plugin, used to generate a hash. Can be obtained using JavaPlugin#getFile(} inside a plugin's main class.
      * @param permission the permission required to execute the command
+     * @param configs a map of configuration settings, where the key is the configuration file name and the value is the configuration saved as a string
+     */
+    public DebugCommandHandler(String modrinthId, JavaPlugin plugin, File pluginFile, String permission, Map<String, String> configs) {
+        this(modrinthId, plugin, pluginFile, permission, configs, new DebugCommandMessages());
+    }
+
+    /**
+     * Constructor for DebugCommandHandler.
+     * @param modrinthId the Modrinth ID of the plugin, used to identify the report
+     * @param plugin the JavaPlugin instance
+     * @param pluginFile the file of the plugin, used to generate a hash. Can be obtained using JavaPlugin#getFile(} inside a plugin's main class.
+     * @param permission the permission required to execute the command
+     * @param configs a map of configuration settings, where the key is the configuration file name and the value is the configuration saved as a string
      * @param messages the messages used in the command
      */
-    public DebugCommandHandler(JavaPlugin plugin, File pluginFile, String permission, DebugCommandMessages messages) {
+    public DebugCommandHandler(String modrinthId, JavaPlugin plugin, File pluginFile, String permission, Map<String, String> configs, DebugCommandMessages messages) {
         this.plugin = plugin;
         this.pluginFile = pluginFile;
         this.permission = permission;
         this.messages = messages;
+        this.modrinthId = modrinthId;
+        this.configs = configs;
     }
 
     @Override
@@ -114,15 +134,14 @@ public final class DebugCommandHandler implements CommandExecutor, TabCompleter 
             return true;
         }
 
-        DebugReport report = ReportDataCollector.collect(plugin, pluginFile, null);
-        String url = MclogsReportUploader.uploadReport(report, plugin);
+        DebugReport report = ReportDataCollector.collect(modrinthId, plugin, pluginFile, configs);
+        String url = ZetaDebugReportUploader.uploadReport(report, plugin);
 
         if (url == null) {
             sender.sendMessage(MessageService.formatMsg(
                     messages.failToUploadMessage(),
                     new MessageService.Replaceable<>("%error%", "Failed to upload report.")
             ));
-            plugin.getLogger().log(Level.SEVERE, "Failed to upload debug report.");
             return false;
         }
 
@@ -141,7 +160,7 @@ public final class DebugCommandHandler implements CommandExecutor, TabCompleter 
      * @return true if the command was handled successfully, false otherwise
      */
     private boolean handleGenerate(CommandSender sender) {
-        DebugReport report = ReportDataCollector.collect(plugin, pluginFile, null);
+        DebugReport report = ReportDataCollector.collect(modrinthId, plugin, pluginFile, configs);
         File reportJson = new File("debug-report.json");
         File reportTxt = new File("debug-report.txt");
 

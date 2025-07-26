@@ -13,9 +13,15 @@ public final class PluginTest extends JavaPlugin {
 
     @Override
     public void onEnable() {
+        getConfig().options().copyDefaults(true);
+        saveDefaultConfig();
+
+        getLogger().info("Config:\n"+ getConfig().saveToString());
+
         new CommandManager(this).registerCommands();
 
         DebugReport debugReport = ReportDataCollector.collect(
+                "MODRINTHID",
                 this,
                 getFile(),
                 new HashMap<>() {{

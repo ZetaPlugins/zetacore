@@ -31,8 +31,7 @@ public abstract class ReportUploader {
      */
     abstract boolean isReady();
 
-    protected @NotNull HttpURLConnection getHttpURLConnection() throws IOException {
-        URL url = new URL("https://api.mclo.gs/1/log");
+    protected @NotNull HttpURLConnection getHttpURLConnection(URL url) throws IOException {
         HttpURLConnection connection = (HttpURLConnection) url.openConnection();
         connection.setRequestMethod("POST");
         connection.setDoOutput(true);

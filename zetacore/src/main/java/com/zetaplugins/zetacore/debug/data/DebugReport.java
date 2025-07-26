@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
  * @param configurations a map of configuration settings, where the key is the configuration file name and the value is the configuration as a string
  */
 public record DebugReport(
+        String modrinthId,
         long timestamp,
         String pluginName,
         String pluginVersion,
@@ -41,6 +42,7 @@ public record DebugReport(
     public JSONObject toJson() {
         JSONObject json = new JSONObject();
         json.put("timestamp", timestamp);
+        json.put("modrinthId", modrinthId);
         json.put("pluginName", pluginName);
         json.put("pluginVersion", pluginVersion);
         json.put("pluginHash", pluginHash);

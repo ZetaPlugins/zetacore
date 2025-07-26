@@ -26,7 +26,7 @@ public class ZetaDebugReportUploader extends ReportUploader {
     String uploadReport(DebugReport debugReport) {
         try {
             // https://debug.zetaplugins.com/api/reports/
-            String uploadUrl = "http://localhost:3000/api/reports/";
+            String uploadUrl = "https://debug.zetaplugins.com/api/reports/";
             HttpURLConnection connection = getHttpURLConnection(new URL(uploadUrl));
             connection.setRequestProperty("Content-Type", "application/json");
 

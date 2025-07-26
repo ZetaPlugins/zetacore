@@ -37,16 +37,27 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.MVN_REPO_SSH_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Upload zetacore artifact to VPS
+      - name: Generate checksums and upload artifacts
         run: |
           GROUP_PATH=$(echo "${{ steps.meta.outputs.groupId }}" | sed 's/\./\//g')
           ARTIFACT_ID=${{ steps.meta.outputs.artifactId }}
           VERSION=${{ steps.meta.outputs.version }}
           REMOTE_DIR="${{ secrets.REMOTE_MAVEN_PATH }}/$GROUP_PATH/$ARTIFACT_ID/$VERSION"
 
+          mkdir -p checksums
+          cp zetacore/target/$ARTIFACT_ID-$VERSION.jar checksums/
+          cp zetacore/pom.xml checksums/$ARTIFACT_ID-$VERSION.pom
+
+          cd checksums
+
+          # Generate checksum files (hash only, no filename)
+          for file in *.{jar,pom}; do
+            sha1sum "$file" | awk '{print $1}' > "$file.sha1"
+            md5sum "$file" | awk '{print $1}' > "$file.md5"
+          done
+
           echo "Creating remote directory: $REMOTE_DIR"
           ssh ${{ secrets.MVN_REPO_SSH_USER }}@${{ secrets.MVN_REPO_SSH_HOST }} "mkdir -p $REMOTE_DIR"
 
-          echo "Uploading JAR and POM"
-          scp zetacore/target/$ARTIFACT_ID-$VERSION.jar ${{ secrets.MVN_REPO_SSH_USER }}@${{ secrets.MVN_REPO_SSH_HOST }}:$REMOTE_DIR/
-          scp zetacore/pom.xml ${{ secrets.MVN_REPO_SSH_USER }}@${{ secrets.MVN_REPO_SSH_HOST }}:$REMOTE_DIR/$ARTIFACT_ID-$VERSION.pom
+          echo "Uploading JAR, POM, and checksums"
+          scp * ${{ secrets.MVN_REPO_SSH_USER }}@${{ secrets.MVN_REPO_SSH_HOST }}:$REMOTE_DIR/

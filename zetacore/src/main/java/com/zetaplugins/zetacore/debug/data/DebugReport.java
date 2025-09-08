@@ -72,7 +72,7 @@ public record DebugReport(
 
     public String toReadableText() {
         StringBuilder res = new StringBuilder();
-        res.append("---- LifeStealZ Debug Dump ----").append("\n");
+        res.append("---- ZetaPlugins Debug Dump ----").append("\n");
         res.append("This is an automatically generated debug report").append("\n");
         res.append("Timestamp: ").append(timestamp).append("\n\n");
         res.append("-- Plugin Details --").append("\n");

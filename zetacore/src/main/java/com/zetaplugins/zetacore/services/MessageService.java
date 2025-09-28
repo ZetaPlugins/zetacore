@@ -12,7 +12,7 @@ import java.util.Map;
 /**
  * Service for handling messages and localization
  */
-public final class MessageService {
+public class MessageService {
     private final LocalizationService localizationService;
 
     /**
@@ -24,6 +24,10 @@ public final class MessageService {
     }
 
     private static final Map<String, String> colorMap;
+
+    protected LocalizationService getLocalizationService() {
+        return localizationService;
+    }
 
     static {
         colorMap = new HashMap<>();
@@ -178,7 +182,7 @@ public final class MessageService {
         return input;
     }
 
-    private static void replaceInBuilder(StringBuilder builder, String placeholder, String replacement) {
+    protected static void replaceInBuilder(StringBuilder builder, String placeholder, String replacement) {
         int index;
         while ((index = builder.indexOf(placeholder)) != -1) {
             builder.replace(index, index + placeholder.length(), replacement);

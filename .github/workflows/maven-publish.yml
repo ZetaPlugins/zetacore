@@ -37,6 +37,22 @@ jobs:
           chmod 600 ~/.ssh/id_rsa
           ssh-keyscan -H ${{ secrets.MVN_REPO_SSH_HOST }} >> ~/.ssh/known_hosts
 
+      - name: Check if version already exists
+        run: |
+          GROUP_PATH=$(echo "${{ steps.meta.outputs.groupId }}" | sed 's/\./\//g')
+          ARTIFACT_ID=${{ steps.meta.outputs.artifactId }}
+          VERSION=${{ steps.meta.outputs.version }}
+          REMOTE_DIR="${{ secrets.REMOTE_MAVEN_PATH }}/$GROUP_PATH/$ARTIFACT_ID/$VERSION"
+          REMOTE_JAR="$REMOTE_DIR/$ARTIFACT_ID-$VERSION.jar"
+
+          echo "Checking if $REMOTE_JAR exists on remote repository..."
+          if ssh ${{ secrets.MVN_REPO_SSH_USER }}@${{ secrets.MVN_REPO_SSH_HOST }} "[ -f $REMOTE_JAR ]"; then
+            echo "Version $VERSION of $ARTIFACT_ID already exists. Exiting."
+            exit 1
+          else
+            echo "Version does not exist. Continuing deployment..."
+          fi
+
       - name: Generate checksums and upload artifacts
         run: |
           GROUP_PATH=$(echo "${{ steps.meta.outputs.groupId }}" | sed 's/\./\//g')

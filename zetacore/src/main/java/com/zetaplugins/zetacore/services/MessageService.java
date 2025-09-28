@@ -14,6 +14,7 @@ import java.util.Map;
  */
 public class MessageService {
     private final LocalizationService localizationService;
+    private final Map<String, String> colorMap;
 
     /**
      * Constructor for MessageService
@@ -21,15 +22,7 @@ public class MessageService {
      */
     public MessageService(LocalizationService localizationService) {
         this.localizationService = localizationService;
-    }
 
-    private static final Map<String, String> colorMap;
-
-    protected LocalizationService getLocalizationService() {
-        return localizationService;
-    }
-
-    static {
         colorMap = new HashMap<>();
         colorMap.put("&0", "<black>");
         colorMap.put("&1", "<dark_blue>");
@@ -56,13 +49,21 @@ public class MessageService {
     }
 
     /**
+     * Gets the LocalizationService instance
+     * @return The LocalizationService instance
+     */
+    protected LocalizationService getLocalizationService() {
+        return localizationService;
+    }
+
+    /**
      * Formats a message with placeholders
      *
      * @param msg The message to format
      * @param replaceables The placeholders to replace
      * @return The formatted message
      */
-    public static Component formatMsg(String msg, Replaceable<?>... replaceables) {
+    public Component formatMsg(String msg, Replaceable<?>... replaceables) {
         msg = replacePlaceholders(msg, replaceables);
 
         MiniMessage mm = MiniMessage.miniMessage();
@@ -92,6 +93,12 @@ public class MessageService {
         return mm.deserialize(msg);
     }
 
+    /**
+     * Gets and formats a list of messages from the config
+     * @param path The path to the message list in the config
+     * @param replaceables The placeholders to replace
+     * @return The list of formatted messages
+     */
     public List<Component> getAndFormatMsgList(String path, Replaceable<?>... replaceables) {
         if (path.startsWith("messages.")) path = path.substring("messages.".length());
 
@@ -110,15 +117,20 @@ public class MessageService {
 
     /**
      * Gets the accent color
-     *
      * @return The accent color
      */
     public String getAccentColor() {
         return localizationService.getString("accentColor", "<#00D26A>");
     }
 
+    /**
+     * Replaces placeholders in a message
+     * @param msg The message to replace placeholders in
+     * @param replaceables The placeholders to replace
+     * @return The message with placeholders replaced
+     */
     @NotNull
-    public static String replacePlaceholders(String msg, Replaceable<?>... replaceables) {
+    public String replacePlaceholders(String msg, Replaceable<?>... replaceables) {
         StringBuilder msgBuilder = new StringBuilder(msg);
 
         for (Replaceable<?> replaceable : replaceables) {
@@ -132,6 +144,12 @@ public class MessageService {
         return msgBuilder.toString();
     }
 
+    /**
+     * Replaces placeholders in a message and adds accent colors
+     * @param msg The message to replace placeholders in
+     * @param replaceables The placeholders to replace
+     * @return The message with placeholders and accent colors replaced
+     */
     @NotNull
     public String replacePlaceholdersWithAccentColors(String msg, Replaceable<?>... replaceables) {
         String replacedMsg = replacePlaceholders(msg, replaceables);
@@ -140,54 +158,24 @@ public class MessageService {
         return msgBuilder.toString();
     }
 
-    public String convertToLegacy(String input) {
-        // Replace color codes
-        input = input.replace("<black>", "§0");
-        input = input.replace("<dark_blue>", "§1");
-        input = input.replace("<dark_green>", "§2");
-        input = input.replace("<dark_aqua>", "§3");
-        input = input.replace("<dark_red>", "§4");
-        input = input.replace("<dark_purple>", "§5");
-        input = input.replace("<gold>", "§6");
-        input = input.replace("<gray>", "§7");
-        input = input.replace("<dark_gray>", "§8");
-        input = input.replace("<blue>", "§9");
-        input = input.replace("<green>", "§a");
-        input = input.replace("<aqua>", "§b");
-        input = input.replace("<red>", "§c");
-        input = input.replace("<light_purple>", "§d");
-        input = input.replace("<yellow>", "§e");
-        input = input.replace("<white>", "§f");
-
-        // Replace formatting codes
-        input = input.replace("<b>", "§l");
-        input = input.replace("<i>", "§o");
-        input = input.replace("<u>", "§n");
-        input = input.replace("<s>", "§m");
-        input = input.replace("<obf>", "§k");
-
-        input = input.replace("<bold>", "§l");
-        input = input.replace("<italic>", "§o");
-        input = input.replace("<underlined>", "§n");
-        input = input.replace("<strikethrough>", "§m");
-        input = input.replace("<obfuscated>", "§k");
-
-        // Replace reset tags
-        input = input.replace("<!b>", "§r");
-        input = input.replace("<!i>", "§r");
-        input = input.replace("<!u>", "§r");
-        input = input.replace("<!s>", "§r");
-        input = input.replace("<!obf>", "§r");
-
-        return input;
-    }
-
-    protected static void replaceInBuilder(StringBuilder builder, String placeholder, String replacement) {
+    /**
+     * Replaces all occurrences of a placeholder in a StringBuilder with a replacement string
+     * @param builder The StringBuilder to replace placeholders in
+     * @param placeholder The placeholder to replace
+     * @param replacement The replacement string
+     */
+    protected void replaceInBuilder(StringBuilder builder, String placeholder, String replacement) {
         int index;
         while ((index = builder.indexOf(placeholder)) != -1) {
             builder.replace(index, index + placeholder.length(), replacement);
         }
     }
 
+    /**
+     * A record representing a placeholder and its value for replacement in messages
+     * @param placeholder The placeholder string to be replaced
+     * @param value The value to replace the placeholder with
+     * @param <T> The type of the value
+     */
     public record Replaceable<T>(String placeholder, T value) {}
 }

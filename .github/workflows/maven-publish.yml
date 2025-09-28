@@ -53,27 +53,42 @@ jobs:
             echo "Version does not exist. Continuing deployment..."
           fi
 
-      - name: Generate checksums and upload artifacts
+      - name: Generate checksums and upload artifacts (including sources & javadoc)
         run: |
           GROUP_PATH=$(echo "${{ steps.meta.outputs.groupId }}" | sed 's/\./\//g')
           ARTIFACT_ID=${{ steps.meta.outputs.artifactId }}
           VERSION=${{ steps.meta.outputs.version }}
           REMOTE_DIR="${{ secrets.REMOTE_MAVEN_PATH }}/$GROUP_PATH/$ARTIFACT_ID/$VERSION"
-
+            
           mkdir -p checksums
-          cp zetacore/target/$ARTIFACT_ID-$VERSION.jar checksums/
-          cp zetacore/pom.xml checksums/$ARTIFACT_ID-$VERSION.pom
-
+          # copy primary artifacts (main jar + pom)
+          cp zetacore/target/$ARTIFACT_ID-$VERSION.jar checksums/ || { echo "Main JAR not found"; exit 1; }
+          cp zetacore/pom.xml checksums/$ARTIFACT_ID-$VERSION.pom || { echo "POM not found"; exit 1; }
+            
+          # copy sources and javadoc jars if they were produced
+          if [ -f "zetacore/target/$ARTIFACT_ID-$VERSION-sources.jar" ]; then
+            cp zetacore/target/$ARTIFACT_ID-$VERSION-sources.jar checksums/
+          else
+            echo "Warning: sources jar not found; continuing without it."
+          fi
+            
+          if [ -f "zetacore/target/$ARTIFACT_ID-$VERSION-javadoc.jar" ]; then
+            cp zetacore/target/$ARTIFACT_ID-$VERSION-javadoc.jar checksums/
+          else
+            echo "Warning: javadoc jar not found; continuing without it."
+          fi
+            
           cd checksums
-
-          # Generate checksum files (hash only, no filename)
-          for file in *.{jar,pom}; do
+            
+          # Generate checksum files (.sha1 and .md5) for any jar/pom present
+          for file in *.jar *.pom; do
+            [ -f "$file" ] || continue
             sha1sum "$file" | awk '{print $1}' > "$file.sha1"
             md5sum "$file" | awk '{print $1}' > "$file.md5"
           done
-
+            
           echo "Creating remote directory: $REMOTE_DIR"
           ssh ${{ secrets.MVN_REPO_SSH_USER }}@${{ secrets.MVN_REPO_SSH_HOST }} "mkdir -p $REMOTE_DIR"
-
-          echo "Uploading JAR, POM, and checksums"
+            
+          echo "Uploading artifacts and checksums"
           scp * ${{ secrets.MVN_REPO_SSH_USER }}@${{ secrets.MVN_REPO_SSH_HOST }}:$REMOTE_DIR/

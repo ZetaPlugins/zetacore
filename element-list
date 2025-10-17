@@ -4,3 +4,5 @@ com.zetaplugins.zetacore.debug.command
 com.zetaplugins.zetacore.debug.data
 com.zetaplugins.zetacore.debug.uploader
 com.zetaplugins.zetacore.services
+com.zetaplugins.zetacore.services.localization
+com.zetaplugins.zetacore.services.messages

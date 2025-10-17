@@ -4,7 +4,8 @@ import com.zetaplugins.zetacore.debug.ReportDataCollector;
 import com.zetaplugins.zetacore.debug.ReportFileWriter;
 import com.zetaplugins.zetacore.debug.data.DebugReport;
 import com.zetaplugins.zetacore.debug.uploader.ZetaDebugReportUploader;
-import com.zetaplugins.zetacore.services.MessageService;
+import com.zetaplugins.zetacore.services.messages.Messenger;
+import com.zetaplugins.zetacore.services.messages.Replaceable;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -29,7 +30,7 @@ public final class DebugCommandHandler implements CommandExecutor, TabCompleter 
     private final DebugCommandMessages messages;
     private final String modrinthId;
     private final Map<String, String> configs;
-    private final MessageService messageService;
+    private final Messenger messenger;
 
     /**
      * Constructor for DebugCommandHandler.
@@ -38,8 +39,8 @@ public final class DebugCommandHandler implements CommandExecutor, TabCompleter 
      * @param pluginFile the file of the plugin, used to generate a hash. Can be obtained using JavaPlugin#getFile(} inside a plugin's main class.
      * @param permission the permission required to execute the command
      */
-    public DebugCommandHandler(String modrinthId, JavaPlugin plugin, File pluginFile, String permission, MessageService messageService) {
-        this(modrinthId, plugin, pluginFile, permission, null, new DebugCommandMessages(), messageService);
+    public DebugCommandHandler(String modrinthId, JavaPlugin plugin, File pluginFile, String permission, Messenger messenger) {
+        this(modrinthId, plugin, pluginFile, permission, null, new DebugCommandMessages(), messenger);
     }
 
     /**
@@ -50,8 +51,8 @@ public final class DebugCommandHandler implements CommandExecutor, TabCompleter 
      * @param permission the permission required to execute the command
      * @param configs a map of configuration settings, where the key is the configuration file name and the value is the configuration saved as a string
      */
-    public DebugCommandHandler(String modrinthId, JavaPlugin plugin, File pluginFile, String permission, Map<String, String> configs, MessageService messageService) {
-        this(modrinthId, plugin, pluginFile, permission, configs, new DebugCommandMessages(), messageService);
+    public DebugCommandHandler(String modrinthId, JavaPlugin plugin, File pluginFile, String permission, Map<String, String> configs, Messenger messenger) {
+        this(modrinthId, plugin, pluginFile, permission, configs, new DebugCommandMessages(), messenger);
     }
 
     /**
@@ -63,14 +64,14 @@ public final class DebugCommandHandler implements CommandExecutor, TabCompleter 
      * @param configs a map of configuration settings, where the key is the configuration file name and the value is the configuration saved as a string
      * @param messages the messages used in the command
      */
-    public DebugCommandHandler(String modrinthId, JavaPlugin plugin, File pluginFile, String permission, Map<String, String> configs, DebugCommandMessages messages, MessageService messageService) {
+    public DebugCommandHandler(String modrinthId, JavaPlugin plugin, File pluginFile, String permission, Map<String, String> configs, DebugCommandMessages messages, Messenger messenger) {
         this.plugin = plugin;
         this.pluginFile = pluginFile;
         this.permission = permission;
         this.messages = messages;
         this.modrinthId = modrinthId;
         this.configs = configs;
-        this.messageService = messageService;
+        this.messenger = messenger;
     }
 
     @Override
@@ -109,25 +110,30 @@ public final class DebugCommandHandler implements CommandExecutor, TabCompleter 
     }
 
     private void throwUsageError(@NotNull CommandSender sender, String usage, String commandName) {
-        sender.sendMessage(messageService.formatMsg(
+        messenger.sendRaw(
+                sender,
                 usage,
-                new MessageService.Replaceable<>("%command%", commandName)
-        ));
+                new Replaceable<>("%command%", commandName)
+        );
     }
 
     private void throwPermissionError(@NotNull CommandSender sender) {
-        sender.sendMessage(messageService.formatMsg(messages.noPermissionMessage()));
+        messenger.sendRaw(
+                sender,
+                messages.noPermissionMessage()
+        );
     }
 
     private boolean handleUpload(CommandSender sender, boolean confirmed, String commandName) {
         if (!confirmed) {
-            sender.sendMessage(messageService.formatMsg(
+            messenger.sendRaw(
+                    sender,
                     messages.uploadConfirmMessage(),
-                    new MessageService.Replaceable<>(
+                    new Replaceable<>(
                             "%command%",
                             "/" + commandName + " upload confirm"
                     )
-            ));
+            );
             return true;
         }
 
@@ -140,19 +146,21 @@ public final class DebugCommandHandler implements CommandExecutor, TabCompleter 
         String url = ZetaDebugReportUploader.uploadReport(report, plugin);
 
         if (url == null) {
-            sender.sendMessage(messageService.formatMsg(
+            messenger.sendRaw(
+                    sender,
                     messages.failToUploadMessage(),
-                    new MessageService.Replaceable<>("%error%", "Failed to upload report.")
-            ));
+                    new Replaceable<>("%error%", "Failed to upload report.")
+            );
             return false;
         }
 
         String formattedUrl = url.replaceAll("\\\\", "");
 
-        sender.sendMessage(messageService.formatMsg(
+        messenger.sendRaw(
+                sender,
                 messages.uploadSuccessMessage(),
-                new MessageService.Replaceable<>("%url%", formattedUrl)
-        ));
+                new Replaceable<>("%url%", formattedUrl)
+        );
         return true;
     }
 
@@ -170,19 +178,21 @@ public final class DebugCommandHandler implements CommandExecutor, TabCompleter 
             ReportFileWriter.writeJsonReportToFile(report, reportJson);
             ReportFileWriter.writeTextReportToFile(report, reportTxt);
         } catch (IOException e) {
-            sender.sendMessage(messageService.formatMsg(
+            messenger.sendRaw(
+                    sender,
                     messages.failedToCreateFileMessage(),
-                    new MessageService.Replaceable<>("%error%", e.getMessage())
-            ));
+                    new Replaceable<>("%error%", e.getMessage())
+            );
             plugin.getLogger().log(Level.SEVERE, "Failed to write debug report", e);
             return false;
         }
 
-        sender.sendMessage(messageService.formatMsg(
+        messenger.sendRaw(
+                sender,
                 messages.fileCreateSuccessMessage(),
-                new MessageService.Replaceable<>("%jsonPath%", reportJson.getAbsolutePath()),
-                new MessageService.Replaceable<>("%txtPath%", reportTxt.getAbsolutePath())
-        ));
+                new Replaceable<>("%jsonPath%", reportJson.getAbsolutePath()),
+                new Replaceable<>("%txtPath%", reportTxt.getAbsolutePath())
+        );
         return true;
     }
 

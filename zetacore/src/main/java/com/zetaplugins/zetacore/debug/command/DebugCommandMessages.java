@@ -4,7 +4,7 @@ package com.zetaplugins.zetacore.debug.command;
  * DebugCommandMessages is a class that holds the messages used in the debug command.
  * It allows customization of the messages displayed to the user.
  */
-public final class DebugCommandMessages {
+public class DebugCommandMessages {
     private String usageMessage = "&cUsage: /%command% <upload | generate>";
     private String noPermissionMessage = "&cYou do not have permission to use this command!";
     private String fileCreateSuccessMessage = "&8 [&a✔&8] &7Saved debug data to the following files:\n<click:COPY_TO_CLIPBOARD:%jsonPath%><#8b73f6>%jsonPath%</click>\n<click:COPY_TO_CLIPBOARD:%txtPath%><#8b73f6>%txtPath%</click>";

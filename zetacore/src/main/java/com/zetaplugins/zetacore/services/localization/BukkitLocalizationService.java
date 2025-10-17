@@ -1,4 +1,4 @@
-package com.zetaplugins.zetacore.services;
+package com.zetaplugins.zetacore.services.localization;
 
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
@@ -11,9 +11,9 @@ import java.util.List;
  * Service for handling localization and language files.
  * This service loads the language file based on the configuration and provides methods to retrieve localized strings.
  */
-public final class LocalizationService {
+public final class BukkitLocalizationService implements LocalizationService {
     private final JavaPlugin plugin;
-    private final List<String> defaultLangs;
+    private final List<String> possibleLangs;
     private final String fallbackLang;
     private final String langFolder;
     private final String langConfigOption;
@@ -22,11 +22,11 @@ public final class LocalizationService {
 
     /**
      * @param plugin The JavaPlugin instance to use for loading resources
-     * @param defaultLangs List of default language codes to load (The languages that are provided by the plugin)
+     * @param possibleLangs List of language codes to load (The languages that are provided by the plugin)
      */
-    public LocalizationService(JavaPlugin plugin, List<String> defaultLangs) {
+    public BukkitLocalizationService(JavaPlugin plugin, List<String> possibleLangs) {
         this.plugin = plugin;
-        this.defaultLangs = defaultLangs;
+        this.possibleLangs = possibleLangs;
         this.fallbackLang = "en-US";
         this.langFolder = "lang/";
         this.langConfigOption = "lang";
@@ -35,14 +35,14 @@ public final class LocalizationService {
 
     /**
      * @param plugin The JavaPlugin instance to use for loading resources
-     * @param defaultLangs List of default language codes to load (The languages that are provided by the plugin)
+     * @param possibleLangs List of language codes to load (The languages that are provided by the plugin)
      * @param fallbackLang The fallback language code to use if the selected language is not found
      * @param langFolder The folder where the language files are stored (e.g., "lang/")
      * @param langConfigOption The configuration option to use for selecting the language (e.g., "lang")
      */
-    public LocalizationService(JavaPlugin plugin, List<String> defaultLangs, String fallbackLang, String langFolder, String langConfigOption) {
+    public BukkitLocalizationService(JavaPlugin plugin, List<String> possibleLangs, String fallbackLang, String langFolder, String langConfigOption) {
         this.plugin = plugin;
-        this.defaultLangs = defaultLangs;
+        this.possibleLangs = possibleLangs;
         this.fallbackLang = fallbackLang;
         this.langFolder = langFolder;
         this.langConfigOption = langConfigOption;
@@ -63,7 +63,7 @@ public final class LocalizationService {
         File languageDirectory = new File(plugin.getDataFolder(), langFolder);
         if (!languageDirectory.exists() || !languageDirectory.isDirectory()) languageDirectory.mkdir();
 
-        for (String langString : defaultLangs) {
+        for (String langString : possibleLangs) {
             File langFile = new File(langFolder, langString + ".yml");
             if (!new File(languageDirectory, langString + ".yml").exists()) {
                 plugin.getLogger().info("Saving file " + langFile.getPath());
@@ -83,30 +83,17 @@ public final class LocalizationService {
         langConfig = YamlConfiguration.loadConfiguration(selectedLangFile);
     }
 
-    /**
-     * Get a string from the language file
-     * @param key The key to get the string for
-     * @return The string from the language file
-     */
+    @Override
     public String getString(String key) {
         return langConfig.getString(key);
     }
 
-    /**
-     * Get a string from the language file with a fallback
-     * @param key The key to get the string for
-     * @param fallback The fallback string
-     * @return The string from the language file or the fallback
-     */
+    @Override
     public String getString(String key, String fallback) {
         return langConfig.getString(key) != null ? langConfig.getString(key) : fallback;
     }
 
-    /**
-     * Get a list of strings from the language file
-     * @param key The key to get the list of strings for
-     * @return The list of strings from the language file
-     */
+    @Override
     public List<String> getStringList(String key) {
         return langConfig.getStringList(key);
     }

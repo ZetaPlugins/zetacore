@@ -1,7 +1,7 @@
 package com.zetaplugins.zetacore.debug.command;
 
 import com.zetaplugins.zetacore.ZetaCorePlugin;
-import com.zetaplugins.zetacore.services.MessageService;
+import com.zetaplugins.zetacore.services.messages.Messenger;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -14,12 +14,10 @@ public final class DebugCommandHandlerBuilder {
     private DebugCommandMessages messages = new DebugCommandMessages();
     private String modrinthId;
     private Map<String, String> configs;
-    private MessageService messageService;
+    private Messenger messenger;
 
     public DebugCommandHandlerBuilder setPlugin(JavaPlugin plugin) {
-        if (plugin instanceof ZetaCorePlugin) {
-            this.pluginFile = ((ZetaCorePlugin) plugin).getPluginFile();
-        }
+        if (plugin instanceof ZetaCorePlugin) this.pluginFile = ((ZetaCorePlugin) plugin).getPluginFile();
         this.plugin = plugin;
         return this;
     }
@@ -49,8 +47,8 @@ public final class DebugCommandHandlerBuilder {
         return this;
     }
 
-    public DebugCommandHandlerBuilder setMessageService(MessageService messageService) {
-        this.messageService = messageService;
+    public DebugCommandHandlerBuilder setMessenger(com.zetaplugins.zetacore.services.messages.Messenger messenger) {
+        this.messenger = messenger;
         return this;
     }
 
@@ -64,9 +62,9 @@ public final class DebugCommandHandlerBuilder {
         if (modrinthId == null || modrinthId.isEmpty()) {
             throw new IllegalStateException("Modrinth ID must be set");
         }
-        if (messageService == null) {
-            throw new IllegalStateException("Message service must be set");
+        if (messenger == null) {
+            throw new IllegalStateException("Messagenger must be set");
         }
-        return new DebugCommandHandler(modrinthId, plugin, pluginFile, permission, configs, messages, messageService);
+        return new DebugCommandHandler(modrinthId, plugin, pluginFile, permission, configs, messages, messenger);
     }
 }

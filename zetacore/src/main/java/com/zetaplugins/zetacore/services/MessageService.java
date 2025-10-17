@@ -1,5 +1,6 @@
 package com.zetaplugins.zetacore.services;
 
+import com.zetaplugins.zetacore.services.localization.LocalizationService;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import org.jetbrains.annotations.NotNull;
@@ -11,6 +12,7 @@ import java.util.Map;
 
 /**
  * Service for handling messages and localization
+ * @deprecated Use {@link com.zetaplugins.zetacore.services.messages.AdventureMessenger} or {@link com.zetaplugins.zetacore.services.messages.LegacyMessenger} instead.
  */
 public class MessageService {
     private final LocalizationService localizationService;
@@ -176,6 +178,7 @@ public class MessageService {
      * @param placeholder The placeholder string to be replaced
      * @param value The value to replace the placeholder with
      * @param <T> The type of the value
+     * @deprecated Use {@link com.zetaplugins.zetacore.services.messages.Replaceable} instead.
      */
     public record Replaceable<T>(String placeholder, T value) {}
 }

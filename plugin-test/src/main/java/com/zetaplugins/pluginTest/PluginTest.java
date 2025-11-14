@@ -1,6 +1,7 @@
 package com.zetaplugins.pluginTest;
 
 import com.zetaplugins.zetacore.ZetaCorePlugin;
+import com.zetaplugins.zetacore.services.bStats.Metrics;
 import com.zetaplugins.zetacore.services.commands.AutoCommandRegistrar;
 import com.zetaplugins.zetacore.services.events.AutoEventRegistrar;
 import com.zetaplugins.zetacore.services.localization.BukkitLocalizationService;
@@ -28,6 +29,9 @@ public final class PluginTest extends ZetaCorePlugin {
         //new CommandManager(this).registerCommands();
         new AutoCommandRegistrar(this, PACKAGE_PREFIX).registerAllCommands();
         new AutoEventRegistrar(this, PACKAGE_PREFIX).registerAllListeners();
+
+        var metrics = createBStatsMetrics(0);
+        metrics.addCustomChart(new Metrics.SimplePie("example_chart", () -> "example_value"));
 
 //        DebugReport debugReport = ReportDataCollector.collect(
 //                "MODRINTHID",

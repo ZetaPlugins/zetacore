@@ -1,8 +1,8 @@
 package com.zetaplugins.pluginTest;
 
 import com.zetaplugins.zetacore.ZetaCorePlugin;
-import com.zetaplugins.zetacore.services.CommandRegistrar;
-import com.zetaplugins.zetacore.services.EventRegistrar;
+import com.zetaplugins.zetacore.services.commands.AutoCommandRegistrar;
+import com.zetaplugins.zetacore.services.events.AutoEventRegistrar;
 import com.zetaplugins.zetacore.services.localization.BukkitLocalizationService;
 import com.zetaplugins.zetacore.services.messages.AdventureMessenger;
 import com.zetaplugins.zetacore.services.messages.Messenger;
@@ -26,8 +26,8 @@ public final class PluginTest extends ZetaCorePlugin {
         messenger = new AdventureMessenger(localizationService);
 
         //new CommandManager(this).registerCommands();
-        new CommandRegistrar(this, PACKAGE_PREFIX).registerAllCommands();
-        new EventRegistrar(this, PACKAGE_PREFIX).registerAllListeners();
+        new AutoCommandRegistrar(this, PACKAGE_PREFIX).registerAllCommands();
+        new AutoEventRegistrar(this, PACKAGE_PREFIX).registerAllListeners();
 
 //        DebugReport debugReport = ReportDataCollector.collect(
 //                "MODRINTHID",

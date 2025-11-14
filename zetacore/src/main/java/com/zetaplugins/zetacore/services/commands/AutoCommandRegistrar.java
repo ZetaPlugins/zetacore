@@ -1,4 +1,4 @@
-package com.zetaplugins.zetacore.services;
+package com.zetaplugins.zetacore.services.commands;
 
 import com.zetaplugins.zetacore.annotations.AutoRegisterCommand;
 import com.zetaplugins.zetacore.annotations.AutoRegisterTabCompleter;
@@ -17,7 +17,7 @@ import java.util.logging.Level;
  * Use the {@link AutoRegisterCommand} annotation to mark command classes for automatic registration.
  * Use the {@link AutoRegisterTabCompleter} annotation to mark tab completer classes for automatic registration.
  */
-public class CommandRegistrar {
+public class AutoCommandRegistrar implements CommandRegistrar {
     private final JavaPlugin plugin;
     private final String packagePrefix;
 
@@ -25,7 +25,7 @@ public class CommandRegistrar {
      * @param plugin The JavaPlugin instance.
      * @param packagePrefix The package prefix to scan for annotated classes.
      */
-    public CommandRegistrar(JavaPlugin plugin, String packagePrefix) {
+    public AutoCommandRegistrar(JavaPlugin plugin, String packagePrefix) {
         this.plugin = plugin;
         this.packagePrefix = packagePrefix;
     }

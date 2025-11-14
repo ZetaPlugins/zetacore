@@ -1,4 +1,4 @@
-package com.zetaplugins.zetacore.services;
+package com.zetaplugins.zetacore.services.events;
 
 import com.zetaplugins.zetacore.annotations.AutoRegisterListener;
 import org.bukkit.event.Listener;
@@ -15,7 +15,7 @@ import java.util.logging.Level;
  * Manages the registration of event listeners for a plugin.
  * Use the {@link com.zetaplugins.zetacore.annotations.AutoRegisterListener} annotation to mark listener classes for automatic registration.
  */
-public class EventRegistrar {
+public class AutoEventRegistrar implements EventRegistrar {
     private final JavaPlugin plugin;
     private final String packagePrefix;
 
@@ -23,7 +23,7 @@ public class EventRegistrar {
      * @param plugin The JavaPlugin instance.
      * @param packagePrefix The package prefix to scan for annotated classes.
      */
-    public EventRegistrar(JavaPlugin plugin, String packagePrefix) {
+    public AutoEventRegistrar(JavaPlugin plugin, String packagePrefix) {
         this.plugin = plugin;
         this.packagePrefix = packagePrefix;
     }
@@ -32,6 +32,7 @@ public class EventRegistrar {
      * Registers all listener classes annotated with {@link com.zetaplugins.zetacore.annotations.AutoRegisterListener}.
      * @return A list of names of the registered listeners.
      */
+    @Override
     public List<String> registerAllListeners() {
         Reflections reflections = new Reflections(packagePrefix);
         Set<Class<?>> annotatedClasses = reflections.getTypesAnnotatedWith(AutoRegisterListener.class);
@@ -77,8 +78,9 @@ public class EventRegistrar {
 
     /**
      * Registers one or more listener instances. This method can be used for manual registration of listeners.
-     * @param listener The listener instances to register.
+     * @param listener The listener(s) to register.
      */
+    @Override
     public void registerListener(Listener... listener) {
         for (Listener l : listener) {
             if (l == null) continue;

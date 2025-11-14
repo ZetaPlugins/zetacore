@@ -16,6 +16,16 @@ public interface CommandRegistrar {
      * Registers a command.
      * @param name The name of the command.
      * @param executor The executor of the command.
+     */
+    default void registerCommand(String name, CommandExecutor executor) {
+        if (executor instanceof TabCompleter) registerCommand(name, executor, (TabCompleter) executor);
+        else registerCommand(name, executor, null);
+    }
+
+    /**
+     * Registers a command.
+     * @param name The name of the command.
+     * @param executor The executor of the command.
      * @param tabCompleter The tab completer of the command.
      */
     void registerCommand(String name, CommandExecutor executor, TabCompleter tabCompleter);

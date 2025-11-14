@@ -1,6 +1,7 @@
 package com.zetaplugins.pluginTest;
 
 import com.zetaplugins.zetacore.ZetaCorePlugin;
+import com.zetaplugins.zetacore.debug.command.DebugCommandHandler;
 import com.zetaplugins.zetacore.services.bStats.Metrics;
 import com.zetaplugins.zetacore.services.commands.AutoCommandRegistrar;
 import com.zetaplugins.zetacore.services.events.AutoEventRegistrar;
@@ -9,7 +10,9 @@ import com.zetaplugins.zetacore.services.messages.AdventureMessenger;
 import com.zetaplugins.zetacore.services.messages.Messenger;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public final class PluginTest extends ZetaCorePlugin {
     private static final String PACKAGE_PREFIX = "com.zetaplugins.pluginTest";
@@ -27,8 +30,12 @@ public final class PluginTest extends ZetaCorePlugin {
         messenger = new AdventureMessenger(localizationService);
 
         //new CommandManager(this).registerCommands();
-        new AutoCommandRegistrar(this, PACKAGE_PREFIX).registerAllCommands();
         new AutoEventRegistrar(this, PACKAGE_PREFIX).registerAllListeners();
+        var cmdRegistrar = new AutoCommandRegistrar(this, PACKAGE_PREFIX);
+        cmdRegistrar.registerAllCommands();
+        Map<String, String> configs = new HashMap<>();
+        configs.put("config.yml", getConfig().saveToString());
+        cmdRegistrar.registerCommand("testpldebug", new DebugCommandHandler("MODRINTHID", this, getPluginFile(), "testplugin.debug", configs, getMessenger()));
 
         var metrics = createBStatsMetrics(0);
         metrics.addCustomChart(new Metrics.SimplePie("example_chart", () -> "example_value"));

@@ -134,7 +134,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
 
         if (command != null) {
             command.setExecutor(executor);
-            command.setTabCompleter(tabCompleter);
+            if (tabCompleter != null) command.setTabCompleter(tabCompleter);
         }
     }
 }

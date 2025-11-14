@@ -1,8 +1,12 @@
 com.zetaplugins.zetacore
+com.zetaplugins.zetacore.annotations
 com.zetaplugins.zetacore.debug
 com.zetaplugins.zetacore.debug.command
 com.zetaplugins.zetacore.debug.data
 com.zetaplugins.zetacore.debug.uploader
 com.zetaplugins.zetacore.services
+com.zetaplugins.zetacore.services.bStats
+com.zetaplugins.zetacore.services.commands
+com.zetaplugins.zetacore.services.events
 com.zetaplugins.zetacore.services.localization
 com.zetaplugins.zetacore.services.messages

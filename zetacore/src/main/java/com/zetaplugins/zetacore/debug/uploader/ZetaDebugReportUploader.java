@@ -14,8 +14,16 @@ import java.nio.charset.StandardCharsets;
 import java.util.logging.Level;
 
 public class ZetaDebugReportUploader extends ReportUploader {
+    private final String uploadUrl;
+
     public ZetaDebugReportUploader(JavaPlugin plugin) {
         super(plugin);
+        this.uploadUrl = "https://debug.zetaplugins.com/api/reports/";
+    }
+
+    public ZetaDebugReportUploader(JavaPlugin plugin, String uploadUrl) {
+        super(plugin);
+        this.uploadUrl = uploadUrl;
     }
 
     public static String uploadReport(DebugReport debugReport, JavaPlugin plugin) {
@@ -25,8 +33,6 @@ public class ZetaDebugReportUploader extends ReportUploader {
     @Override
     String uploadReport(DebugReport debugReport) {
         try {
-            // https://debug.zetaplugins.com/api/reports/
-            String uploadUrl = "https://debug.zetaplugins.com/api/reports/";
             HttpURLConnection connection = getHttpURLConnection(new URL(uploadUrl));
             connection.setRequestProperty("Content-Type", "application/json");
 

@@ -23,8 +23,8 @@ public final class CommandManager {
         configs.put("config.yml", plugin.getConfig().saveToString());
         registerCommand(
                 "testpldebug",
-                new DebugCommandHandler("MODRINTHID", plugin, plugin.getPluginFile(), "testplugin.debug", configs),
-                new DebugCommandHandler("MODRINTHID", plugin, plugin.getPluginFile(), "testplugin.debug", configs)
+                new DebugCommandHandler("MODRINTHID", plugin, plugin.getPluginFile(), "testplugin.debug", configs, plugin.getMessenger()),
+                new DebugCommandHandler("MODRINTHID", plugin, plugin.getPluginFile(), "testplugin.debug", configs, plugin.getMessenger())
         );
     }
 

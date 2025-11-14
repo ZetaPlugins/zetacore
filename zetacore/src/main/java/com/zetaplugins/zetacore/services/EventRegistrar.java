@@ -19,6 +19,10 @@ public class EventRegistrar {
     private final JavaPlugin plugin;
     private final String packagePrefix;
 
+    /**
+     * @param plugin The JavaPlugin instance.
+     * @param packagePrefix The package prefix to scan for annotated classes.
+     */
     public EventRegistrar(JavaPlugin plugin, String packagePrefix) {
         this.plugin = plugin;
         this.packagePrefix = packagePrefix;

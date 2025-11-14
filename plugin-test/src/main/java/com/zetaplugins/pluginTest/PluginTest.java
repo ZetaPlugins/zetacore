@@ -1,6 +1,7 @@
 package com.zetaplugins.pluginTest;
 
 import com.zetaplugins.zetacore.ZetaCorePlugin;
+import com.zetaplugins.zetacore.services.CommandRegistrar;
 import com.zetaplugins.zetacore.services.EventRegistrar;
 import com.zetaplugins.zetacore.services.localization.BukkitLocalizationService;
 import com.zetaplugins.zetacore.services.messages.AdventureMessenger;
@@ -24,7 +25,8 @@ public final class PluginTest extends ZetaCorePlugin {
         var localizationService = new BukkitLocalizationService(this, new ArrayList<>(List.of("en-US")));
         messenger = new AdventureMessenger(localizationService);
 
-        new CommandManager(this).registerCommands();
+        //new CommandManager(this).registerCommands();
+        new CommandRegistrar(this, PACKAGE_PREFIX).registerAllCommands();
         new EventRegistrar(this, PACKAGE_PREFIX).registerAllListeners();
 
 //        DebugReport debugReport = ReportDataCollector.collect(

@@ -1,21 +1,16 @@
 package com.zetaplugins.pluginTest;
 
 import com.zetaplugins.zetacore.ZetaCorePlugin;
-import com.zetaplugins.zetacore.debug.ReportDataCollector;
-import com.zetaplugins.zetacore.debug.ReportFileWriter;
-import com.zetaplugins.zetacore.debug.data.DebugReport;
 import com.zetaplugins.zetacore.services.EventRegistrar;
 import com.zetaplugins.zetacore.services.localization.BukkitLocalizationService;
 import com.zetaplugins.zetacore.services.messages.AdventureMessenger;
 import com.zetaplugins.zetacore.services.messages.Messenger;
 
-import java.io.File;
-import java.io.IOException;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 public final class PluginTest extends ZetaCorePlugin {
+    private static final String PACKAGE_PREFIX = "com.zetaplugins.pluginTest";
 
     private Messenger messenger;
 
@@ -30,6 +25,7 @@ public final class PluginTest extends ZetaCorePlugin {
         messenger = new AdventureMessenger(localizationService);
 
         new CommandManager(this).registerCommands();
+        new EventRegistrar(this, PACKAGE_PREFIX).registerAllListeners();
 
 //        DebugReport debugReport = ReportDataCollector.collect(
 //                "MODRINTHID",

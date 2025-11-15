@@ -6,7 +6,7 @@
 
     <groupId>com.zetaplugins</groupId>
     <artifactId>zetacore</artifactId>
-    <version>1.2.0</version>
+    <version>1.2.1</version>
     <packaging>jar</packaging>
 
     <name>ZetaCore</name>
@@ -80,6 +80,7 @@
                     </execution>
                 </executions>
             </plugin>
+            <!-- Replace your <plugin> configuration for maven-shade-plugin with this -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>
@@ -93,15 +94,32 @@
                     </execution>
                 </executions>
                 <configuration>
+                    <createDependencyReducedPom>false</createDependencyReducedPom>
                     <relocations>
                         <relocation>
                             <pattern>org.reflections</pattern>
                             <shadedPattern>com.zetaplugins.zetacore.libs.reflections</shadedPattern>
                         </relocation>
+                        <relocation>
+                            <pattern>javassist</pattern>
+                            <shadedPattern>com.zetaplugins.zetacore.libs.javassist</shadedPattern>
+                        </relocation>
                     </relocations>
+                    <artifactSet>
+                        <includes>
+                            <include>org.reflections:reflections</include>
+                            <include>org.javassist:javassist</include>
+                        </includes>
+                    </artifactSet>
                     <filters>
                         <filter>
                             <artifact>org.reflections:reflections</artifact>
+                            <includes>
+                                <include>**/*</include>
+                            </includes>
+                        </filter>
+                        <filter>
+                            <artifact>org.javassist:javassist</artifact>
                             <includes>
                                 <include>**/*</include>
                             </includes>
@@ -115,11 +133,6 @@
                             </excludes>
                         </filter>
                     </filters>
-                    <artifactSet>
-                        <includes>
-                            <include>org.reflections:reflections</include>
-                        </includes>
-                    </artifactSet>
                     <transformers>
                         <transformer implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
                     </transformers>
@@ -140,6 +153,11 @@
     </repositories>
 
     <dependencies>
+        <dependency>
+            <groupId>org.javassist</groupId>
+            <artifactId>javassist</artifactId>
+            <version>3.29.2-GA</version>
+        </dependency>
         <dependency>
             <groupId>org.reflections</groupId>
             <artifactId>reflections</artifactId>

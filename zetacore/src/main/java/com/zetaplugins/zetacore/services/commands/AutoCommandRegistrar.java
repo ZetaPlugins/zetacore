@@ -9,6 +9,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.reflections.Reflections;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Method;
 import java.util.*;
 import java.util.logging.Level;
 
@@ -45,7 +46,38 @@ public class AutoCommandRegistrar implements CommandRegistrar {
             if (TabCompleter.class.isAssignableFrom(clazz)) {
                 AutoRegisterTabCompleter annotation = clazz.getAnnotation(AutoRegisterTabCompleter.class);
                 TabCompleter completer = createTabCompleter(clazz);
-                if (completer != null) tabCompleters.put(annotation.command(), completer);
+                if (completer == null) continue;
+
+                // support old command and new commands annotation methods
+                List<String> names = new ArrayList<>();
+                try {
+                    Method commandsMethod = annotation.annotationType().getMethod("commands");
+                    String[] arr = (String[]) commandsMethod.invoke(annotation);
+                    if (arr != null && arr.length > 0) {
+                        for (String n : arr) if (n != null && !n.isEmpty()) names.add(n);
+                    } else {
+                        throw new NoSuchMethodException();
+                    }
+                } catch (NoSuchMethodException ignored) {
+                    try {
+                        Method commandMethod = annotation.annotationType().getMethod("command");
+                        String n = (String) commandMethod.invoke(annotation);
+                        if (n != null && !n.isEmpty()) names.add(n);
+                    } catch (NoSuchMethodException ignored2) {
+                        plugin.getLogger().warning("AutoRegisterTabCompleter annotation on " + clazz.getSimpleName() +
+                                " has no 'commands' or 'command' method");
+                    } catch (Exception e) {
+                        plugin.getLogger().log(Level.WARNING, "Failed to read AutoRegisterTabCompleter annotation on "
+                                + clazz.getSimpleName(), e);
+                    }
+                } catch (Exception e) {
+                    plugin.getLogger().log(Level.WARNING, "Failed to read AutoRegisterTabCompleter annotation on "
+                            + clazz.getSimpleName(), e);
+                }
+
+                for (String name : names) {
+                    tabCompleters.put(name, completer);
+                }
             }
         }
 
@@ -53,8 +85,8 @@ public class AutoCommandRegistrar implements CommandRegistrar {
 
         for (Class<?> clazz : commandClasses) {
             if (CommandExecutor.class.isAssignableFrom(clazz)) {
-                String commandName = registerCommand(clazz, tabCompleters);
-                if (commandName != null) registeredCommands.add(commandName);
+                List<String> names = registerCommand(clazz, tabCompleters);
+                if (names != null && !names.isEmpty()) registeredCommands.addAll(names);
             }
         }
 
@@ -83,44 +115,77 @@ public class AutoCommandRegistrar implements CommandRegistrar {
     }
 
     /**
-     * Registers a single command class.
+     * Registers a command class for all names declared on the annotation.
+     * Supports both the new `commands()` (String[]) and the old `command()` (String) annotation shapes.
      * @param commandClass The command class to register.
      * @param tabCompleters A map of command names to their corresponding tab completers.
-     * @return The name of the registered command, or null if registration failed.
+     * @return The list of display names for the registered commands, or an empty list if none registered.
      */
-    private String registerCommand(Class<?> commandClass, Map<String, TabCompleter> tabCompleters) {
+    private List<String> registerCommand(Class<?> commandClass, Map<String, TabCompleter> tabCompleters) {
+        List<String> result = new ArrayList<>();
+
         try {
             AutoRegisterCommand annotation = commandClass.getAnnotation(AutoRegisterCommand.class);
-            String commandName = annotation.command();
+            if (annotation == null) return result;
+
+            List<String> commandNames = new ArrayList<>();
+            try {
+                Method commandsMethod = annotation.annotationType().getMethod("commands");
+                String[] names = (String[]) commandsMethod.invoke(annotation);
+                if (names != null && names.length > 0) {
+                    for (String n : names) if (n != null && !n.isEmpty()) commandNames.add(n);
+                } else {
+                    throw new NoSuchMethodException();
+                }
+            } catch (NoSuchMethodException ignored) {
+                try {
+                    Method commandMethod = annotation.annotationType().getMethod("command");
+                    String name = (String) commandMethod.invoke(annotation);
+                    if (name != null && !name.isEmpty()) commandNames.add(name);
+                } catch (NoSuchMethodException ignored2) {
+                    plugin.getLogger().warning("AutoRegisterCommand annotation on " + commandClass.getSimpleName() +
+                            " has no 'commands' or 'command' method");
+                }
+            }
+
+            if (commandNames.isEmpty()) return result;
 
             CommandExecutor executor;
             try {
                 Constructor<?> constructor = commandClass.getConstructor(plugin.getClass());
                 executor = (CommandExecutor) constructor.newInstance(plugin);
             } catch (NoSuchMethodException e) {
-                Constructor<?> constructor = commandClass.getConstructor();
-                executor = (CommandExecutor) constructor.newInstance();
+                try {
+                    Constructor<?> constructor = commandClass.getConstructor();
+                    executor = (CommandExecutor) constructor.newInstance();
+                } catch (NoSuchMethodException ex) {
+                    plugin.getLogger().severe("No suitable constructor found for command class: " + commandClass.getSimpleName());
+                    return null;
+                }
             }
 
-            PluginCommand command = plugin.getCommand(commandName);
-            if (command != null) {
-                command.setExecutor(executor);
+            String displayName = annotation.name().isEmpty() ? commandClass.getSimpleName() : annotation.name();
 
-                if (executor instanceof TabCompleter) {
-                    command.setTabCompleter((TabCompleter) executor);
-                } else if (tabCompleters.containsKey(commandName)) {
-                    command.setTabCompleter(tabCompleters.get(commandName));
+            for (String commandName : commandNames) {
+                PluginCommand command = plugin.getCommand(commandName);
+                if (command != null) {
+                    command.setExecutor(executor);
+
+                    if (executor instanceof TabCompleter) {
+                        command.setTabCompleter((TabCompleter) executor);
+                    } else if (tabCompleters.containsKey(commandName)) {
+                        command.setTabCompleter(tabCompleters.get(commandName));
+                    }
+
+                    result.add(displayName);
+                } else {
+                    plugin.getLogger().warning("Command '" + commandName + "' not found in plugin.yml");
                 }
-
-                return annotation.name().isEmpty() ? commandClass.getSimpleName() : annotation.name();
-            } else {
-                plugin.getLogger().warning("Command '" + commandName + "' not found in plugin.yml");
-                return null;
             }
         } catch (Exception e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to register command: " + commandClass.getSimpleName(), e);
-            return null;
         }
+        return result;
     }
 
     /**

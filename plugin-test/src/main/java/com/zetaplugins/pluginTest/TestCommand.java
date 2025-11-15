@@ -6,7 +6,7 @@ import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
 import org.jetbrains.annotations.NotNull;
 
-@AutoRegisterCommand(command = "testcommand")
+@AutoRegisterCommand(commands = {"testcommand", "test2command"})
 public class TestCommand implements CommandExecutor {
 
     @Override

@@ -9,7 +9,7 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
-@AutoRegisterTabCompleter(command = "testcommand")
+@AutoRegisterTabCompleter(commands = {"testcommand", "test2command"})
 public class TestCommandTabCompleter implements TabCompleter {
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender commandSender, @NotNull Command command, @NotNull String s, @NotNull String @NotNull [] strings) {

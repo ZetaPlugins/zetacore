@@ -32,7 +32,8 @@ public final class PluginTest extends ZetaCorePlugin {
         //new CommandManager(this).registerCommands();
         new AutoEventRegistrar(this, PACKAGE_PREFIX).registerAllListeners();
         var cmdRegistrar = new AutoCommandRegistrar(this, PACKAGE_PREFIX);
-        cmdRegistrar.registerAllCommands();
+        var commands = cmdRegistrar.registerAllCommands();
+        getLogger().info("Registered commands: " + String.join(", ", commands));
         Map<String, String> configs = new HashMap<>();
         configs.put("config.yml", getConfig().saveToString());
         cmdRegistrar.registerCommand("testpldebug", new DebugCommandHandler("MODRINTHID", this, getPluginFile(), "testplugin.debug", configs, getMessenger()));

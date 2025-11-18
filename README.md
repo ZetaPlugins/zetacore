@@ -76,7 +76,7 @@ To shade zetacore into the plugin jar, add the following to the plugins section 
 
 #### Gradle
 
-Idk figure it out yourself
+Idk figure it out yourself lol
 
 ### 3. Read the javadocs
 

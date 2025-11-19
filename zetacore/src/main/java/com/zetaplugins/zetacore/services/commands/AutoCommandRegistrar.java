@@ -2,13 +2,13 @@ package com.zetaplugins.zetacore.services.commands;
 
 import com.zetaplugins.zetacore.annotations.AutoRegisterCommand;
 import com.zetaplugins.zetacore.annotations.AutoRegisterTabCompleter;
-import org.bukkit.command.CommandExecutor;
-import org.bukkit.command.PluginCommand;
-import org.bukkit.command.TabCompleter;
+import org.bukkit.Bukkit;
+import org.bukkit.command.*;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.reflections.Reflections;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.*;
 import java.util.logging.Level;
@@ -21,6 +21,7 @@ import java.util.logging.Level;
 public class AutoCommandRegistrar implements CommandRegistrar {
     private final JavaPlugin plugin;
     private final String packagePrefix;
+    private final String commandNamespace;
 
     /**
      * @param plugin The JavaPlugin instance.
@@ -29,6 +30,33 @@ public class AutoCommandRegistrar implements CommandRegistrar {
     public AutoCommandRegistrar(JavaPlugin plugin, String packagePrefix) {
         this.plugin = plugin;
         this.packagePrefix = packagePrefix;
+        this.commandNamespace = plugin.getName().toLowerCase();
+    }
+
+    /**
+     * @param plugin The JavaPlugin instance.
+     * @param packagePrefix The package prefix to scan for annotated classes.
+     * @param commandNamespace The namespace to use for the commands. (e.g. "myplugin" for /myplugin:command)
+     */
+    public AutoCommandRegistrar(JavaPlugin plugin, String packagePrefix, String commandNamespace) {
+        this.plugin = plugin;
+        this.packagePrefix = packagePrefix;
+        this.commandNamespace = commandNamespace;
+    }
+
+    /**
+     * Gets the command map
+     * @return The command map
+     */
+    private CommandMap getCommandMap() {
+        try {
+            Field field = Bukkit.getServer().getClass().getDeclaredField("commandMap");
+            field.setAccessible(true);
+            return (CommandMap) field.get(Bukkit.getServer());
+        } catch (Exception e) {
+            plugin.getLogger().severe("Failed to get command map: " + e.getMessage());
+            return null;
+        }
     }
 
     /**
@@ -128,12 +156,16 @@ public class AutoCommandRegistrar implements CommandRegistrar {
             AutoRegisterCommand annotation = commandClass.getAnnotation(AutoRegisterCommand.class);
             if (annotation == null) return result;
 
-            List<String> commandNames = new ArrayList<>();
+            List<RegisterableCommand> commandsToRegister = new ArrayList<>();
+
             try {
                 Method commandsMethod = annotation.annotationType().getMethod("commands");
                 String[] names = (String[]) commandsMethod.invoke(annotation);
+
                 if (names != null && names.length > 0) {
-                    for (String n : names) if (n != null && !n.isEmpty()) commandNames.add(n);
+                    for (String n : names) if (n != null && !n.isEmpty()) {
+                        commandsToRegister.add(RegisterableCommand.fromAnnotation(n, annotation));
+                    }
                 } else {
                     throw new NoSuchMethodException();
                 }
@@ -141,14 +173,18 @@ public class AutoCommandRegistrar implements CommandRegistrar {
                 try {
                     Method commandMethod = annotation.annotationType().getMethod("command");
                     String name = (String) commandMethod.invoke(annotation);
-                    if (name != null && !name.isEmpty()) commandNames.add(name);
+                    if (name != null && !name.isEmpty()) {
+                        commandsToRegister.add(RegisterableCommand.fromAnnotation(name, annotation));
+                    } else {
+                        throw new NoSuchMethodException();
+                    }
                 } catch (NoSuchMethodException ignored2) {
                     plugin.getLogger().warning("AutoRegisterCommand annotation on " + commandClass.getSimpleName() +
                             " has no 'commands' or 'command' method");
                 }
             }
 
-            if (commandNames.isEmpty()) return result;
+            if (commandsToRegister.isEmpty()) return result;
 
             CommandExecutor executor;
             try {
@@ -164,23 +200,21 @@ public class AutoCommandRegistrar implements CommandRegistrar {
                 }
             }
 
-            String displayName = annotation.name().isEmpty() ? commandClass.getSimpleName() : annotation.name();
+            for (var registerableCommand : commandsToRegister) {
+                TabCompleter tabCompleter =
+                        (executor instanceof TabCompleter)
+                        ? (TabCompleter) executor
+                        : (tabCompleters.getOrDefault(registerableCommand.name(), null));
 
-            for (String commandName : commandNames) {
-                PluginCommand command = plugin.getCommand(commandName);
-                if (command != null) {
-                    command.setExecutor(executor);
+                boolean success = registerableCommand.register(
+                        plugin,
+                        commandNamespace,
+                        getCommandMap(),
+                        executor,
+                        tabCompleter
+                );
 
-                    if (executor instanceof TabCompleter) {
-                        command.setTabCompleter((TabCompleter) executor);
-                    } else if (tabCompleters.containsKey(commandName)) {
-                        command.setTabCompleter(tabCompleters.get(commandName));
-                    }
-
-                    result.add(displayName);
-                } else {
-                    plugin.getLogger().warning("Command '" + commandName + "' not found in plugin.yml");
-                }
+                if (success) result.add(registerableCommand.name());
             }
         } catch (Exception e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to register command: " + commandClass.getSimpleName(), e);
@@ -189,7 +223,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
     }
 
     /**
-     * Manually registers a command
+     * Manually registers a command defined in the plugin.yml
      * @param name The name of the command
      * @param executor The executor of the command
      * @param tabCompleter The tab completer of the command

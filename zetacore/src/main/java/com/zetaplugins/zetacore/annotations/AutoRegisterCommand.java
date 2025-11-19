@@ -16,7 +16,6 @@ import java.lang.annotation.Target;
 public @interface AutoRegisterCommand {
     /**
      * The command to register.
-     * @deprecated Use {@link #commands()} instead for multiple commands.
      */
     String command() default "";
 
@@ -29,4 +28,24 @@ public @interface AutoRegisterCommand {
      * The name of the command handler. NOT the actual command string, but a speaking name for the handler.
      */
     String name() default "";
+
+    /**
+     * Aliases for the command.
+     */
+    String[] aliases() default {};
+
+    /**
+     * Description of the command.
+     */
+    String description() default "__UNSET__";
+
+    /**
+     * Usage information for the command.
+     */
+    String usage() default "__UNSET__";
+
+    /**
+     * Permission required to execute the command.
+     */
+    String permission() default "__UNSET__";
 }

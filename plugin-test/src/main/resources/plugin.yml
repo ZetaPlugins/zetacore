@@ -12,10 +12,10 @@ commands:
     description: Debug command for testing purposes
     permission: testplugin.debug
     permission-message: You do not have permission to use this command
-  testcommand:
-    description: A simple test command
-    permission: testplugin.use
-    permission-message: You do not have permission to use this command
+#  testcommand:
+#    description: A simple test command
+#    permission: testplugin.use
+#    permission-message: You do not have permission to use this command
   test2command:
     description: A simple test command
     permission: testplugin.use

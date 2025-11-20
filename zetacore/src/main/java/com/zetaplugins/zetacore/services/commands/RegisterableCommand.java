@@ -43,10 +43,11 @@ public record RegisterableCommand(
     }
 
     private void setPluginCommandAttributes(Command command) {
+        String commandName = command.getName();
         if (!aliases.isEmpty()) command.setAliases(aliases);
-        if (description != null && !description.equals(UNSET)) command.setDescription(description);
-        if (usage != null && !usage.equals(UNSET)) command.setUsage(usage);
-        if (permission != null && !permission.equals(UNSET)) command.setPermission(permission);
+        if (description != null && !description.equals(UNSET)) command.setDescription(description.replaceAll("%command%", commandName));
+        if (usage != null && !usage.equals(UNSET)) command.setUsage(usage.replaceAll("%command%", commandName));
+        if (permission != null && !permission.equals(UNSET)) command.setPermission(permission.replaceAll("%command%", commandName));
     }
 
     /**

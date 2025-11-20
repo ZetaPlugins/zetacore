@@ -8,8 +8,8 @@ import org.jetbrains.annotations.NotNull;
 
 @AutoRegisterCommand(
         commands = {"testcommand", "test2command"},
-        description = "A test command for demonstration purposes",
-        permission = "testplugin.use",
+        description = "A %command% for demonstration purposes",
+        permission = "testplugin.%command%",
         usage = "/<command> <test1, test2. test3>"
 )
 public class TestCommand implements CommandExecutor {

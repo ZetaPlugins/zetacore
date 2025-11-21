@@ -1,10 +1,14 @@
 package com.zetaplugins.pluginTest;
 
 import com.zetaplugins.zetacore.annotations.AutoRegisterCommand;
+import com.zetaplugins.zetacore.commands.ArgumentList;
+import com.zetaplugins.zetacore.commands.exceptions.CommandException;
+import com.zetaplugins.zetacore.commands.exceptions.CommandSenderMustBePlayerException;
 import org.bukkit.command.Command;
-import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
-import org.jetbrains.annotations.NotNull;
+import org.bukkit.entity.Player;
+
+import java.util.List;
 
 @AutoRegisterCommand(
         commands = {"testcommand", "test2command"},
@@ -12,11 +16,22 @@ import org.jetbrains.annotations.NotNull;
         permission = "testplugin.%command%",
         usage = "/<command> <test1, test2. test3>"
 )
-public class TestCommand implements CommandExecutor {
+public class TestCommand extends TestPluginCommand {
+
+    public TestCommand(PluginTest plugin) {
+        super(plugin);
+    }
 
     @Override
-    public boolean onCommand(@NotNull CommandSender commandSender, @NotNull Command command, @NotNull String s, @NotNull String @NotNull [] strings) {
-        commandSender.sendMessage("Test command executed!");
+    public boolean execute(CommandSender sender, Command command, String label, ArgumentList args) throws CommandException {
+        if (!(sender instanceof Player player)) throw new CommandSenderMustBePlayerException();
+
+        player.sendMessage("You executed the " + command.getName() + " command with arguments: " + args.toString());
         return true;
+    }
+
+    @Override
+    public List<String> tabComplete(CommandSender sender, Command command, ArgumentList args) {
+        return List.of();
     }
 }

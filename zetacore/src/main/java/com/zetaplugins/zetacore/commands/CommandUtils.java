@@ -1,4 +1,7 @@
-package com.zetaplugins.zetacore.services.commands;
+package com.zetaplugins.zetacore.commands;
+
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.Collection;
 import java.util.List;
@@ -20,6 +23,22 @@ public final class CommandUtils {
         return options.stream()
                 .filter(option -> startsWithIgnoreCase(option, input))
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Get a list of player options that start with the input
+     *
+     * @param plugin The instance of the plugin
+     * @return A list of player options
+     */
+    public static List<String> getPlayerOptions(JavaPlugin plugin, String input) {
+        return getDisplayOptions(
+                plugin.getServer().getOnlinePlayers()
+                        .parallelStream()
+                        .map(Player::getName)
+                        .collect(Collectors.toList()),
+                input
+        );
     }
 
     /**

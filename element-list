@@ -1,5 +1,7 @@
 com.zetaplugins.zetacore
 com.zetaplugins.zetacore.annotations
+com.zetaplugins.zetacore.commands
+com.zetaplugins.zetacore.commands.exceptions
 com.zetaplugins.zetacore.debug
 com.zetaplugins.zetacore.debug.command
 com.zetaplugins.zetacore.debug.data

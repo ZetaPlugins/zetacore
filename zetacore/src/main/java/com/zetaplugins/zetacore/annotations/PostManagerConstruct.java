@@ -6,9 +6,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation to mark a field for plugin injection.
+ * Marks a method to be executed after construction and manager injection.
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.FIELD)
-public @interface InjectPlugin {
+@Target(ElementType.METHOD)
+public @interface PostManagerConstruct {
 }

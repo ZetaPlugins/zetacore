@@ -9,6 +9,7 @@ com.zetaplugins.zetacore.debug.uploader
 com.zetaplugins.zetacore.services
 com.zetaplugins.zetacore.services.bStats
 com.zetaplugins.zetacore.services.commands
+com.zetaplugins.zetacore.services.di
 com.zetaplugins.zetacore.services.events
 com.zetaplugins.zetacore.services.localization
 com.zetaplugins.zetacore.services.messages

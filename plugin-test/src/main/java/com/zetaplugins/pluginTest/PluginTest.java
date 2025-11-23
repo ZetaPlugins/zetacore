@@ -4,6 +4,7 @@ import com.zetaplugins.zetacore.ZetaCorePlugin;
 import com.zetaplugins.zetacore.debug.command.DebugCommandHandler;
 import com.zetaplugins.zetacore.services.bStats.Metrics;
 import com.zetaplugins.zetacore.services.commands.AutoCommandRegistrar;
+import com.zetaplugins.zetacore.services.di.ManagerRegistry;
 import com.zetaplugins.zetacore.services.events.AutoEventRegistrar;
 import com.zetaplugins.zetacore.services.localization.BukkitLocalizationService;
 import com.zetaplugins.zetacore.services.messages.AdventureMessenger;
@@ -29,10 +30,18 @@ public final class PluginTest extends ZetaCorePlugin {
         var localizationService = new BukkitLocalizationService(this, new ArrayList<>(List.of("en-US")));
         messenger = new AdventureMessenger(localizationService);
 
-        //new CommandManager(this).registerCommands();
-        new AutoEventRegistrar(this, PACKAGE_PREFIX).registerAllListeners();
-        var cmdRegistrar = new AutoCommandRegistrar(this, PACKAGE_PREFIX);
+        var managerRegistry = new ManagerRegistry(this);
+
+        new AutoEventRegistrar(this, PACKAGE_PREFIX, managerRegistry).registerAllListeners();
+
+        var cmdRegistrar = new AutoCommandRegistrar.Builder()
+                .setPlugin(this)
+                .setPackagePrefix(PACKAGE_PREFIX)
+                .setManagerRegistry(managerRegistry)
+                .build();
         var commands = cmdRegistrar.registerAllCommands();
+        cmdRegistrar.registerCommand("count", new CountCommand(this));
+
         getLogger().info("Registered commands: " + String.join(", ", commands));
         Map<String, String> configs = new HashMap<>();
         configs.put("config.yml", getConfig().saveToString());

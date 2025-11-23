@@ -1,6 +1,7 @@
 package com.zetaplugins.zetacore.services.events;
 
 import com.zetaplugins.zetacore.annotations.AutoRegisterListener;
+import com.zetaplugins.zetacore.services.di.ManagerRegistry;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.reflections.Reflections;
@@ -18,6 +19,7 @@ import java.util.logging.Level;
 public class AutoEventRegistrar implements EventRegistrar {
     private final JavaPlugin plugin;
     private final String packagePrefix;
+    private final ManagerRegistry managerRegistry;
 
     /**
      * @param plugin The JavaPlugin instance.
@@ -26,6 +28,18 @@ public class AutoEventRegistrar implements EventRegistrar {
     public AutoEventRegistrar(JavaPlugin plugin, String packagePrefix) {
         this.plugin = plugin;
         this.packagePrefix = packagePrefix;
+        this.managerRegistry = null;
+    }
+
+    /**
+     * @param plugin The JavaPlugin instance.
+     * @param packagePrefix The package prefix to scan for annotated classes.
+     * @param managerRegistry The ManagerRegistry for dependency injection.
+     */
+    public AutoEventRegistrar(JavaPlugin plugin, String packagePrefix, ManagerRegistry managerRegistry) {
+        this.plugin = plugin;
+        this.packagePrefix = packagePrefix;
+        this.managerRegistry = managerRegistry;
     }
 
     /**
@@ -62,9 +76,16 @@ public class AutoEventRegistrar implements EventRegistrar {
                 Constructor<?> constructor = listenerClass.getConstructor(plugin.getClass());
                 listener = (Listener) constructor.newInstance(plugin);
             } catch (NoSuchMethodException e) {
-                Constructor<?> constructor = listenerClass.getConstructor();
-                listener = (Listener) constructor.newInstance();
+                try {
+                    Constructor<?> constructor = listenerClass.getConstructor();
+                    listener = (Listener) constructor.newInstance();
+                } catch (NoSuchMethodException ex) {
+                    plugin.getLogger().severe("No suitable constructor found for listener: " + listenerClass.getSimpleName());
+                    return null;
+                }
             }
+
+            if (managerRegistry != null) managerRegistry.injectManagers(listener);
 
             plugin.getServer().getPluginManager().registerEvents(listener, plugin);
 
@@ -84,7 +105,38 @@ public class AutoEventRegistrar implements EventRegistrar {
     public void registerListener(Listener... listener) {
         for (Listener l : listener) {
             if (l == null) continue;
+            if (managerRegistry != null) managerRegistry.injectManagers(l);
             plugin.getServer().getPluginManager().registerEvents(l, plugin);
+        }
+    }
+
+    /**
+     * Builder class for AutoEventRegistrar.
+     */
+    public static class Builder {
+        private JavaPlugin plugin;
+        private String packagePrefix;
+        private ManagerRegistry managerRegistry;
+
+        public Builder setPlugin(JavaPlugin plugin) {
+            this.plugin = plugin;
+            return this;
+        }
+
+        public Builder setPackagePrefix(String packagePrefix) {
+            this.packagePrefix = packagePrefix;
+            return this;
+        }
+
+        public Builder setManagerRegistry(ManagerRegistry managerRegistry) {
+            this.managerRegistry = managerRegistry;
+            return this;
+        }
+
+        public AutoEventRegistrar build() {
+            if (plugin == null) throw new IllegalStateException("Plugin must be set");
+            if (packagePrefix == null) throw new IllegalStateException("Package prefix must be set");
+            return new AutoEventRegistrar(plugin, packagePrefix, managerRegistry);
         }
     }
 }

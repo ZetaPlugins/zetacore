@@ -1,6 +1,7 @@
 package com.zetaplugins.zetacore.services.commands;
 
 import com.zetaplugins.zetacore.annotations.AutoRegisterCommand;
+import com.zetaplugins.zetacore.services.di.ManagerRegistry;
 import org.bukkit.command.*;
 import org.bukkit.command.defaults.BukkitCommand;
 import org.bukkit.plugin.java.JavaPlugin;

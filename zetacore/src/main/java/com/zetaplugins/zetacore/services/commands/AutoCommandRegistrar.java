@@ -2,6 +2,7 @@ package com.zetaplugins.zetacore.services.commands;
 
 import com.zetaplugins.zetacore.annotations.AutoRegisterCommand;
 import com.zetaplugins.zetacore.annotations.AutoRegisterTabCompleter;
+import com.zetaplugins.zetacore.services.di.ManagerRegistry;
 import org.bukkit.Bukkit;
 import org.bukkit.command.*;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -23,6 +24,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
     private final JavaPlugin plugin;
     private final String packagePrefix;
     private final String commandNamespace;
+    private final ManagerRegistry managerRegistry;
 
     /**
      * @param plugin The JavaPlugin instance.
@@ -32,6 +34,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
         this.plugin = plugin;
         this.packagePrefix = packagePrefix;
         this.commandNamespace = plugin.getName().toLowerCase();
+        this.managerRegistry = null;
     }
 
     /**
@@ -43,6 +46,14 @@ public class AutoCommandRegistrar implements CommandRegistrar {
         this.plugin = plugin;
         this.packagePrefix = packagePrefix;
         this.commandNamespace = commandNamespace;
+        this.managerRegistry = null;
+    }
+
+    public AutoCommandRegistrar(JavaPlugin plugin, String packagePrefix, String commandNamespace, ManagerRegistry managerRegistry) {
+        this.plugin = plugin;
+        this.packagePrefix = packagePrefix;
+        this.commandNamespace = commandNamespace;
+        this.managerRegistry = managerRegistry;
     }
 
     /**
@@ -86,7 +97,8 @@ public class AutoCommandRegistrar implements CommandRegistrar {
                 TabCompleter completer = createTabCompleter(clazz);
                 if (completer == null) continue;
 
-                // support old command and new commands annotation methods
+                injectManagers(completer);
+
                 List<String> names = new ArrayList<>();
                 try {
                     Method commandsMethod = annotation.annotationType().getMethod("commands");
@@ -217,11 +229,13 @@ public class AutoCommandRegistrar implements CommandRegistrar {
                 }
             }
 
+            injectManagers(executor);
+
             for (var registerableCommand : commandsToRegister) {
                 TabCompleter tabCompleter =
                         (executor instanceof TabCompleter)
-                        ? (TabCompleter) executor
-                        : (tabCompleters.getOrDefault(registerableCommand.name(), null));
+                                ? (TabCompleter) executor
+                                : (tabCompleters.getOrDefault(registerableCommand.name(), null));
 
                 boolean success = registerableCommand.register(
                         plugin,
@@ -248,9 +262,70 @@ public class AutoCommandRegistrar implements CommandRegistrar {
     public void registerCommand(String name, CommandExecutor executor, TabCompleter tabCompleter) {
         PluginCommand command = plugin.getCommand(name);
 
-        if (command != null) {
-            command.setExecutor(executor);
-            if (tabCompleter != null) command.setTabCompleter(tabCompleter);
+        if (executor == null) {
+            plugin.getLogger().warning("Cannot register command '" + name + "' with null executor.");
+            return;
+        }
+
+        if (command == null) {
+            plugin.getLogger().warning("Command '" + name + "' not found in plugin.yml.");
+            return;
+        }
+
+        injectManagers(executor);
+
+        command.setExecutor(executor);
+        if (tabCompleter != null) {
+            injectManagers(tabCompleter);
+            command.setTabCompleter(tabCompleter);
+        } else if (executor instanceof TabCompleter tabComp) {
+            injectManagers(tabComp);
+            command.setTabCompleter(tabComp);
+        }
+    }
+
+    /**
+     * Injects managers into the target object using the ManagerRegistry.
+     * @param target The target object to inject managers into.
+     */
+    private void injectManagers(Object target) {
+        if (managerRegistry != null) managerRegistry.injectManagers(target);
+    }
+
+    /**
+     * Builder class for constructing an AutoCommandRegistrar instance.
+     */
+    public static class Builder {
+        private JavaPlugin plugin;
+        private String packagePrefix;
+        private String commandNamespace;
+        private ManagerRegistry managerRegistry;
+
+        public Builder setPlugin(JavaPlugin plugin) {
+            this.plugin = plugin;
+            return this;
+        }
+
+        public Builder setPackagePrefix(String packagePrefix) {
+            this.packagePrefix = packagePrefix;
+            return this;
+        }
+
+        public Builder setCommandNamespace(String commandNamespace) {
+            this.commandNamespace = commandNamespace;
+            return this;
+        }
+
+        public Builder setManagerRegistry(ManagerRegistry managerRegistry) {
+            this.managerRegistry = managerRegistry;
+            return this;
+        }
+
+        public AutoCommandRegistrar build() {
+            if (plugin == null) throw new IllegalStateException("Plugin must be set");
+            if (packagePrefix == null) throw new IllegalStateException("Package prefix must be set");
+            if (commandNamespace == null) commandNamespace = plugin.getName().toLowerCase();
+            return new AutoCommandRegistrar(plugin, packagePrefix, commandNamespace, managerRegistry);
         }
     }
 }

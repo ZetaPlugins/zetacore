@@ -11,6 +11,7 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.logging.Level;
 
 /**
@@ -64,6 +65,15 @@ public class AutoCommandRegistrar implements CommandRegistrar {
      * @return A list of names of the registered commands.
      */
     public List<String> registerAllCommands() {
+        return registerAllCommands(name -> true);
+    }
+
+    /**
+     * Registers all commands annotated with {@link AutoRegisterCommand} and tab completers annotated with {@link AutoRegisterTabCompleter}.
+     * @param commandNameFilter A predicate to filter which command names to register.
+     * @return A list of names of the registered commands.
+     */
+    public List<String> registerAllCommands(Predicate<String> commandNameFilter) {
         Reflections reflections = new Reflections(packagePrefix);
         List<String> registeredCommands = new ArrayList<>();
 
@@ -82,7 +92,9 @@ public class AutoCommandRegistrar implements CommandRegistrar {
                     Method commandsMethod = annotation.annotationType().getMethod("commands");
                     String[] arr = (String[]) commandsMethod.invoke(annotation);
                     if (arr != null && arr.length > 0) {
-                        for (String n : arr) if (n != null && !n.isEmpty()) names.add(n);
+                        for (String n : arr) {
+                            if (n != null && !n.isEmpty() && commandNameFilter.test(n)) names.add(n);
+                        }
                     } else {
                         throw new NoSuchMethodException();
                     }
@@ -90,7 +102,11 @@ public class AutoCommandRegistrar implements CommandRegistrar {
                     try {
                         Method commandMethod = annotation.annotationType().getMethod("command");
                         String n = (String) commandMethod.invoke(annotation);
-                        if (n != null && !n.isEmpty()) names.add(n);
+                        if (n != null && !n.isEmpty() && commandNameFilter.test(n)) {
+                            names.add(n);
+                        } else {
+                            throw new NoSuchMethodException();
+                        }
                     } catch (NoSuchMethodException ignored2) {
                         plugin.getLogger().warning("AutoRegisterTabCompleter annotation on " + clazz.getSimpleName() +
                                 " has no 'commands' or 'command' method");
@@ -113,7 +129,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
 
         for (Class<?> clazz : commandClasses) {
             if (CommandExecutor.class.isAssignableFrom(clazz)) {
-                List<String> names = registerCommand(clazz, tabCompleters);
+                List<String> names = registerCommand(clazz, tabCompleters, commandNameFilter);
                 if (names != null && !names.isEmpty()) registeredCommands.addAll(names);
             }
         }
@@ -147,9 +163,10 @@ public class AutoCommandRegistrar implements CommandRegistrar {
      * Supports both the new `commands()` (String[]) and the old `command()` (String) annotation shapes.
      * @param commandClass The command class to register.
      * @param tabCompleters A map of command names to their corresponding tab completers.
+     * @param commandNameFilter A predicate to filter which command names to register.
      * @return The list of display names for the registered commands, or an empty list if none registered.
      */
-    private List<String> registerCommand(Class<?> commandClass, Map<String, TabCompleter> tabCompleters) {
+    private List<String> registerCommand(Class<?> commandClass, Map<String, TabCompleter> tabCompleters, Predicate<String> commandNameFilter) {
         List<String> result = new ArrayList<>();
 
         try {
@@ -163,7 +180,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
                 String[] names = (String[]) commandsMethod.invoke(annotation);
 
                 if (names != null && names.length > 0) {
-                    for (String n : names) if (n != null && !n.isEmpty()) {
+                    for (String n : names) if (n != null && !n.isEmpty() && commandNameFilter.test(n)) {
                         commandsToRegister.add(RegisterableCommand.fromAnnotation(n, annotation));
                     }
                 } else {
@@ -173,7 +190,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
                 try {
                     Method commandMethod = annotation.annotationType().getMethod("command");
                     String name = (String) commandMethod.invoke(annotation);
-                    if (name != null && !name.isEmpty()) {
+                    if (name != null && !name.isEmpty() && commandNameFilter.test(name)) {
                         commandsToRegister.add(RegisterableCommand.fromAnnotation(name, annotation));
                     } else {
                         throw new NoSuchMethodException();

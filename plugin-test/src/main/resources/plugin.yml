@@ -16,10 +16,10 @@ commands:
 #    description: A simple test command
 #    permission: testplugin.use
 #    permission-message: You do not have permission to use this command
-  test2command:
-    description: A simple test command
-    permission: testplugin.use
-    permission-message: You do not have permission to use this command
+#  test2command:
+#    description: A simple test command
+#    permission: testplugin.use
+#    permission-message: You do not have permission to use this command
 
 permissions:
   testplugin.debug:

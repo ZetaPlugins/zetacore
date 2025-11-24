@@ -1,5 +1,5 @@
 name: plugin-test
-version: '1.0.0'
+version: '1.3.100'
 main: com.zetaplugins.pluginTest.PluginTest
 api-version: '1.21'
 load: STARTUP

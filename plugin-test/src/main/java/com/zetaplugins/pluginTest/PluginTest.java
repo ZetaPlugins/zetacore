@@ -9,6 +9,9 @@ import com.zetaplugins.zetacore.services.events.AutoEventRegistrar;
 import com.zetaplugins.zetacore.services.localization.BukkitLocalizationService;
 import com.zetaplugins.zetacore.services.messages.AdventureMessenger;
 import com.zetaplugins.zetacore.services.messages.Messenger;
+import com.zetaplugins.zetacore.services.updatechecker.GitHubUpdateChecker;
+import com.zetaplugins.zetacore.services.updatechecker.ModrinthUpdateChecker;
+import com.zetaplugins.zetacore.services.updatechecker.UpdateChecker;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -49,6 +52,10 @@ public final class PluginTest extends ZetaCorePlugin {
 
         var metrics = createBStatsMetrics(0);
         metrics.addCustomChart(new Metrics.SimplePie("example_chart", () -> "example_value"));
+
+        UpdateChecker mr = new GitHubUpdateChecker(this, "ZetaPlugins", "LifeStealZ");
+        mr.checkForUpdates(true);
+        if (mr.isNewVersionAvailable()) getLogger().info("A new version is available: " + mr.getLatestVersion());
 
 //        DebugReport debugReport = ReportDataCollector.collect(
 //                "MODRINTHID",

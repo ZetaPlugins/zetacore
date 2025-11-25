@@ -67,10 +67,7 @@ public class ConfigService {
 
         File configFile = new File(plugin.getDataFolder(), fileName + ".yml");
         if (!configFile.exists()) {
-            boolean success = configFile.getParentFile().mkdirs();
-            if (!success) {
-                plugin.getLogger().warning("Could not create directories for config file: " + fileName + ".yml");
-            }
+            configFile.getParentFile().mkdirs();
             plugin.saveResource(fileName + ".yml", false);
         }
 

@@ -97,4 +97,51 @@ public final class BukkitLocalizationService implements LocalizationService {
     public List<String> getStringList(String key) {
         return langConfig.getStringList(key);
     }
+
+    /**
+     * Builder class for creating instances of BukkitLocalizationService
+     */
+    public static class Builder {
+        private JavaPlugin plugin;
+        private List<String> possibleLangs;
+        private String fallbackLang = "en-US";
+        private String langFolder = "lang/";
+        private String langConfigOption = "lang";
+
+        public Builder setPlugin(JavaPlugin plugin) {
+            this.plugin = plugin;
+            return this;
+        }
+
+        public Builder setPossibleLangs(List<String> possibleLangs) {
+            this.possibleLangs = possibleLangs;
+            return this;
+        }
+
+        public Builder setFallbackLang(String fallbackLang) {
+            this.fallbackLang = fallbackLang;
+            return this;
+        }
+
+        public Builder setLangFolder(String langFolder) {
+            this.langFolder = langFolder;
+            return this;
+        }
+
+        public Builder setLangConfigOption(String langConfigOption) {
+            this.langConfigOption = langConfigOption;
+            return this;
+        }
+
+        /**
+         * Build the BukkitLocalizationService instance
+         * @return The constructed BukkitLocalizationService
+         */
+        public BukkitLocalizationService build() {
+            if (plugin == null) throw new IllegalStateException("Plugin must be set");
+            if (possibleLangs == null || possibleLangs.isEmpty())
+                throw new IllegalStateException("Possible languages must be set and not empty");
+            return new BukkitLocalizationService(plugin, possibleLangs, fallbackLang, langFolder, langConfigOption);
+        }
+    }
 }

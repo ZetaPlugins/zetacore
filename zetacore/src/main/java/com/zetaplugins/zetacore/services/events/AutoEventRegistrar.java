@@ -133,6 +133,10 @@ public class AutoEventRegistrar implements EventRegistrar {
             return this;
         }
 
+        /**
+         * Builds the AutoEventRegistrar instance.
+         * @return The constructed AutoEventRegistrar.
+         */
         public AutoEventRegistrar build() {
             if (plugin == null) throw new IllegalStateException("Plugin must be set");
             if (packagePrefix == null) throw new IllegalStateException("Package prefix must be set");

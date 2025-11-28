@@ -7,6 +7,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import java.io.File;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Level;
 
 /**
  * Service for managing plugin configuration files with caching support.
@@ -74,6 +75,33 @@ public class ConfigService {
         FileConfiguration fileConfig = YamlConfiguration.loadConfiguration(configFile);
         if (useCache) configCache.put(fileName, fileConfig);
         return fileConfig;
+    }
+
+    /**
+     * Save a configuration file based on the provided PluginConfig enum.
+     * @param config The PluginConfig enum representing the configuration file to save.
+     * @param fileConfig The FileConfiguration object to save.
+     */
+    public void saveConfig(PluginConfig config, FileConfiguration fileConfig) {
+        saveFileConfigToFileName(config.getFileName(), fileConfig);
+    }
+
+    /**
+     * Save a configuration file based on the provided file name.
+     * @param fileName The name of the configuration file (without the .yml extension).
+     * @param fileConfig The FileConfiguration object to save.
+     */
+    public void saveConfig(String fileName, FileConfiguration fileConfig) {
+        saveFileConfigToFileName(fileName, fileConfig);
+    }
+
+    private void saveFileConfigToFileName(String fileName, FileConfiguration fileConfig) {
+        File configFile = new File(plugin.getDataFolder(), fileName + ".yml");
+        try {
+            fileConfig.save(configFile);
+        } catch (Exception e) {
+            plugin.getLogger().log(Level.SEVERE, "Failed to save configuration file: " + fileName + ".yml", e);
+        }
     }
 
     /**

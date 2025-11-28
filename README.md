@@ -2,6 +2,24 @@
 
 zetacore is the core library for plugins made by ZetaPlugins.
 
+-> [javadocs](https://jd.zetacore.zetaplugins.com)
+
+## Overview
+
+The **zetacore** project is organized into several packages, each responsible for a specific part of the library:
+
+- **`commands`** – Core command framework.
+- **`debug`** – Utilities for generating debug reports and communicating with `debug.zetaplugins.com`.
+- **`services.bstats`** – Convenience wrapper for bStats metrics.
+- **`services.commands`** – Components related to command registration.
+- **`services.config`** – Tools for managing and reading configuration files.
+- **`services.di`** – Dependency injection framework (annotations are found in `annotations`).
+- **`services.events`** – Classes for registering and managing event listeners.
+- **`services.localization`** – Localization utilities.
+- **`services.messages`** – Message formatting utilities.
+- **`services.updatechecker`** – Prebuilt update checker implementations.
+- **`annotations`** – Annotations for the DI framework and auto-registration helpers.
+
 ## Usage
 
 ### 1. Include zetacore as a dependency

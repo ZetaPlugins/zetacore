@@ -3,6 +3,7 @@ package com.zetaplugins.zetacore.commands;
 import com.zetaplugins.zetacore.commands.exceptions.CommandException;
 import com.zetaplugins.zetacore.commands.exceptions.CommandPermissionException;
 import com.zetaplugins.zetacore.commands.exceptions.CommandUsageException;
+import com.zetaplugins.zetacore.commands.exceptions.GenericCommandException;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
 import org.bukkit.command.CommandSender;
@@ -30,6 +31,11 @@ public abstract class PluginCommand<T extends JavaPlugin> implements CommandExec
      */
     public PluginCommand(T plugin) {
         this.plugin = plugin;
+
+        registerExceptionHandler(
+                GenericCommandException.class,
+                (ctx, e) -> e.getHandler().handle(ctx, e)
+        );
     }
 
     protected T getPlugin() {

@@ -15,18 +15,18 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface AutoRegisterTabCompleter {
     /**
-     * The command to register.
-     * @deprecated Use {@link #commands()} instead for multiple commands.
+     * The command to register the tab completer for.
      */
     String command() default "";
 
     /**
-     * The commands to register.
+     * The commands to register the tab completer for.
      */
     String[] commands() default {};
 
     /**
      * The name of the tab completer. NOT the actual command string, but a speaking name for the completer.
+     * @deprecated Use {@link #command()} or {@link #commands()} to specify the commands instead.
      */
     String name() default "";
 }

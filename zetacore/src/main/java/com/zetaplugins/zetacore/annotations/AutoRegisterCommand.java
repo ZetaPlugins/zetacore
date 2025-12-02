@@ -26,6 +26,7 @@ public @interface AutoRegisterCommand {
 
     /**
      * The name of the command handler. NOT the actual command string, but a speaking name for the handler.
+     * @deprecated Use {@link #command()} or {@link #commands()} for actual command registration.
      */
     String name() default "";
 

@@ -1,5 +1,6 @@
 package com.zetaplugins.zetacore.services.config;
 
+import com.zetaplugins.zetacore.annotations.Manager;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -12,6 +13,7 @@ import java.util.logging.Level;
 /**
  * Service for managing plugin configuration files with caching support.
  */
+@Manager
 public class ConfigService {
     private final JavaPlugin plugin;
     private final Map<String, FileConfiguration> configCache;

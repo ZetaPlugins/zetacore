@@ -4,6 +4,9 @@ import org.bukkit.event.Listener;
 
 import java.util.List;
 
+/**
+ * Service for registering event listeners.
+ */
 public interface EventRegistrar {
     /**
      * Registers all event listeners.

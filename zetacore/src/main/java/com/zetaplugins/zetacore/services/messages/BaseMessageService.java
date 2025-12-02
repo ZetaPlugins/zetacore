@@ -1,10 +1,12 @@
 package com.zetaplugins.zetacore.services.messages;
 
+import com.zetaplugins.zetacore.annotations.Manager;
 import com.zetaplugins.zetacore.services.localization.LocalizationService;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
 
+@Manager
 public abstract class BaseMessageService {
     protected final LocalizationService localizationService;
     protected final Map<String, String> colorMap;

@@ -1,5 +1,6 @@
 package com.zetaplugins.zetacore.services.updatechecker;
 
+import com.zetaplugins.zetacore.annotations.Manager;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
@@ -16,6 +17,7 @@ import java.nio.charset.StandardCharsets;
 /**
  * ModrinthUpdateChecker checks for updates of a JavaPlugin by querying the Modrinth API.
  */
+@Manager
 public class ModrinthUpdateChecker extends UpdateChecker {
     private final String projectId;
 

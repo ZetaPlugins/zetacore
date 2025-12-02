@@ -1,7 +1,9 @@
 package com.zetaplugins.zetacore.services.messages;
 
+import com.zetaplugins.zetacore.annotations.Manager;
 import org.bukkit.command.CommandSender;
 
+@Manager
 public interface Messenger {
     /**
      * Send a message by path with placeholders

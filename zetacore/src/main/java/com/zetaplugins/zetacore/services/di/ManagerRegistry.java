@@ -6,9 +6,7 @@ import org.reflections.Reflections;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * A registry for managing and injecting manager instances.
@@ -18,6 +16,7 @@ public class ManagerRegistry {
     private final Map<Class<?>, Object> instances = new HashMap<>();
     private final boolean requireManagerAnnotation;
     private final String packagePrefix;
+    private final ThreadLocal<Deque<Class<?>>> creationStack = ThreadLocal.withInitial(ArrayDeque::new);
 
     /**
      * Creates a new ManagerRegistry for the given plugin. Doesn't require the {@link Manager} annotation on managed classes.
@@ -90,29 +89,36 @@ public class ManagerRegistry {
     public <T> T getOrCreate(Class<T> cls) {
         requireManagerAnnotation(cls);
 
-        if (cls.isAnnotationPresent(Manager.class)) {
-            ManagerOptions options = getManagerOptions(cls);
-            if (options.scope() == ManagerScope.PROTOTYPE) {
-                try {
-                    T obj = createInstance(cls);
-                    injectManagers(obj);
-                    return obj;
-                } catch (Exception e) {
-                    throw new RuntimeException("Failed to create prototype instance of " + cls.getName(), e);
+        Deque<Class<?>> stack = creationStack.get();
+        if (stack.contains(cls)) {
+            throw new RuntimeException("Circular dependency detected: " + stack + " -> " + cls.getName());
+        }
+        stack.push(cls);
+        try {
+            if (cls.isAnnotationPresent(Manager.class)) {
+                ManagerOptions options = getManagerOptions(cls);
+                if (options.scope() == ManagerScope.PROTOTYPE) {
+                    try {
+                        T obj = createInstance(cls);
+                        injectManagers(obj);
+                        return obj;
+                    } catch (Exception e) {
+                        throw new RuntimeException("Failed to create prototype instance of " + cls.getName(), e);
+                    }
                 }
             }
-        }
 
-        Object existing = instances.get(cls);
-        if (existing != null) return (T) existing;
+            Object existing = instances.get(cls);
+            if (existing != null) return (T) existing;
 
-        try {
             T obj = createInstance(cls);
             instances.put(cls, obj);
             injectManagers(obj);
             return obj;
         } catch (Exception e) {
             throw new RuntimeException("Failed to create instance of " + cls.getName(), e);
+        } finally {
+            stack.pop();
         }
     }
 
@@ -137,8 +143,12 @@ public class ManagerRegistry {
             T obj = noArg.newInstance();
             injectManagers(obj);
             return obj;
-        } catch (Exception e) {
+        } catch (InstantiationException | IllegalAccessException | java.lang.reflect.InvocationTargetException | NoSuchMethodException e) {
             throw new RuntimeException("Failed to create instance of " + cls.getName() + ". The class must have either a no-argument constructor or a constructor that accepts the plugin instance.", e);
+        } catch (ClassCastException e) {
+            throw new RuntimeException("Failed to cast instance of " + cls.getName(), e);
+        } catch (Exception e) {
+            throw new RuntimeException("Unexpected error while creating instance of " + cls.getName(), e);
         }
     }
 

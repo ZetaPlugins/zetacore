@@ -43,7 +43,7 @@ public class GitHubUpdateChecker extends UpdateChecker {
             getLogger().info(getNewVersionConsoleMessage(
                     latestTag,
                     currentVersion,
-                    getLatestReleaseUrl()
+                    getLatestVersionUrl()
             ));
         } else {
             setNewVersionAvailable(false);
@@ -54,7 +54,8 @@ public class GitHubUpdateChecker extends UpdateChecker {
         return "https://api.github.com/repos/" + repoOwner + "/" + repoName + "/releases/latest";
     }
 
-    private String getLatestReleaseUrl() {
+    @Override
+    public String getLatestVersionUrl() {
         return "https://github.com/" + repoOwner + "/" + repoName + "/releases/latest";
     }
 

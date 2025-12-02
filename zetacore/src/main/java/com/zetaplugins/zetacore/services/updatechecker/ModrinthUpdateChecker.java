@@ -42,18 +42,23 @@ public class ModrinthUpdateChecker extends UpdateChecker {
             getLogger().info(getNewVersionConsoleMessage(
                     latestVersion,
                     currentVersion,
-                    getLatestVersionUrl(latestVersion)
+                    getVersionUrl(latestVersion)
             ));
         } else {
             setNewVersionAvailable(false);
         }
     }
 
+    @Override
+    public String getLatestVersionUrl() {
+        return getVersionUrl(getLatestVersion());
+    }
+
     private String getModrinthProjectUrl() {
         return "https://api.modrinth.com/v2/project/" + projectId;
     }
 
-    private String getLatestVersionUrl(String version) {
+    public String getVersionUrl(String version) {
         return "https://modrinth.com/plugin/" + projectId +  "/version/" + version;
     }
 

@@ -68,6 +68,8 @@ public abstract class UpdateChecker {
         return latestVersion;
     }
 
+    public abstract String getLatestVersionUrl();
+
     protected JavaPlugin getPlugin() {
         return plugin;
     }

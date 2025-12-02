@@ -2,13 +2,16 @@ package com.zetaplugins.pluginTest;
 
 import com.zetaplugins.zetacore.annotations.InjectManager;
 import com.zetaplugins.zetacore.annotations.InjectPlugin;
+import com.zetaplugins.zetacore.annotations.Manager;
 import com.zetaplugins.zetacore.annotations.PostManagerConstruct;
+import com.zetaplugins.zetacore.services.di.ManagerScope;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
+@Manager
 public class CountManager {
     private final Map<Player, Integer> playerCounts;
 
@@ -20,6 +23,7 @@ public class CountManager {
 
     public CountManager() {
         playerCounts = new HashMap<>();
+        System.out.println("CountManager constructor called: " + this.hashCode());
     }
 
     @PostManagerConstruct
@@ -35,6 +39,7 @@ public class CountManager {
     }
 
     public int getCounter(UUID playerId) {
+        System.out.println(greetingManager.getGreeting("CountManager.getCounter"));
         Player player = plugin.getServer().getPlayer(playerId);
         return playerCounts.getOrDefault(player, 0);
     }

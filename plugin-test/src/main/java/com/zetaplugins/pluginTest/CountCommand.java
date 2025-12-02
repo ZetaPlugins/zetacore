@@ -10,12 +10,12 @@ import org.bukkit.entity.Player;
 
 import java.util.List;
 
-//@AutoRegisterCommand(
-//        commands = {"count"},
-//        description = "A %command% that does nothing",
-//        permission = "testplugin.%command%",
-//        usage = "/<command>"
-//)
+@AutoRegisterCommand(
+        commands = {"count"},
+        description = "A %command% that does nothing",
+        permission = "testplugin.%command%",
+        usage = "/<command>"
+)
 public class CountCommand extends TestPluginCommand {
 
     @InjectManager

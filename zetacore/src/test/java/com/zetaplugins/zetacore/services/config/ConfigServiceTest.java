@@ -65,7 +65,6 @@ class ConfigServiceTest {
 
     @Test
     void getConfig_whenFileMissing_callsSaveResource_andLoadsCreatedFile() {
-        when(plugin.getLogger()).thenReturn(java.util.logging.Logger.getLogger("TestLogger"));
         Path cfgPath = tempDir.resolve("materials.yml");
         assertFalse(Files.exists(cfgPath));
 

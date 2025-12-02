@@ -1,14 +1,14 @@
 package com.zetaplugins.zetacore.services.di;
 
-import com.zetaplugins.zetacore.annotations.InjectManager;
-import com.zetaplugins.zetacore.annotations.InjectPlugin;
-import com.zetaplugins.zetacore.annotations.PostManagerConstruct;
+import com.zetaplugins.zetacore.annotations.*;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.reflections.Reflections;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A registry for managing and injecting manager instances.
@@ -16,15 +16,47 @@ import java.util.Map;
 public class ManagerRegistry {
     private final JavaPlugin plugin;
     private final Map<Class<?>, Object> instances = new HashMap<>();
+    private final boolean requireManagerAnnotation;
+    private final String packagePrefix;
 
     /**
-     * Creates a new ManagerRegistry for the given plugin.
+     * Creates a new ManagerRegistry for the given plugin. Doesn't require the {@link Manager} annotation on managed classes.
      * @param plugin The main plugin instance.
      */
     public ManagerRegistry(JavaPlugin plugin) {
         this.plugin = plugin;
         instances.put(plugin.getClass(), plugin);
         instances.put(JavaPlugin.class, plugin);
+        this.requireManagerAnnotation = false;
+        this.packagePrefix = plugin.getClass().getPackageName();
+    }
+
+    /**
+     * Creates a new ManagerRegistry for the given plugin.
+     * @param plugin The main plugin instance.
+     * @param requireManagerAnnotation Whether to require the {@link Manager} annotation on managed classes.
+     */
+    public ManagerRegistry(JavaPlugin plugin, boolean requireManagerAnnotation, String packagePrefix) {
+        this.plugin = plugin;
+        instances.put(plugin.getClass(), plugin);
+        instances.put(JavaPlugin.class, plugin);
+        this.requireManagerAnnotation = requireManagerAnnotation;
+        this.packagePrefix = packagePrefix;
+    }
+
+    /**
+     * Initializes and registers all eagerly loaded singleton managers found in the specified package.
+     */
+    public void initializeEagerManagers() {
+        Reflections reflections = new Reflections(packagePrefix);
+        Set<Class<?>> annotatedClasses = reflections.getTypesAnnotatedWith(Manager.class);
+
+        for (Class<?> cls : annotatedClasses) {
+            ManagerOptions options = getManagerOptions(cls);
+            if (options.eagerlyLoad() && options.scope() == ManagerScope.SINGLETON) {
+                getOrCreate(cls);
+            }
+        }
     }
 
     /**
@@ -32,6 +64,7 @@ public class ManagerRegistry {
      * @param instance The instance to register.
      */
     public void registerInstance(Object instance) {
+        requireManagerAnnotation(instance.getClass());
         injectManagers(instance);
         instances.put(instance.getClass(), instance);
     }
@@ -42,6 +75,7 @@ public class ManagerRegistry {
      * @param instance The instance to register.
      */
     public void registerInstance(Class<?> cls, Object instance) {
+        requireManagerAnnotation(cls);
         injectManagers(instance);
         instances.put(cls, instance);
     }
@@ -54,35 +88,57 @@ public class ManagerRegistry {
      */
     @SuppressWarnings("unchecked")
     public <T> T getOrCreate(Class<T> cls) {
+        requireManagerAnnotation(cls);
+
+        if (cls.isAnnotationPresent(Manager.class)) {
+            ManagerOptions options = getManagerOptions(cls);
+            if (options.scope() == ManagerScope.PROTOTYPE) {
+                try {
+                    T obj = createInstance(cls);
+                    injectManagers(obj);
+                    return obj;
+                } catch (Exception e) {
+                    throw new RuntimeException("Failed to create prototype instance of " + cls.getName(), e);
+                }
+            }
+        }
+
         Object existing = instances.get(cls);
         if (existing != null) return (T) existing;
 
         try {
-            for (Constructor<?> constructor : cls.getDeclaredConstructors()) {
-                Class<?>[] params = constructor.getParameterTypes();
-                if (params.length == 1 && params[0].isAssignableFrom(plugin.getClass())) {
-                    constructor.setAccessible(true);
-                    T obj = (T) constructor.newInstance(plugin);
-                    instances.put(cls, obj);
-                    injectManagers(obj);
-                    return obj;
-                }
-                if (params.length == 1 && params[0].isAssignableFrom(JavaPlugin.class)) {
-                    constructor.setAccessible(true);
-                    T obj = (T) constructor.newInstance(plugin);
-                    instances.put(cls, obj);
-                    injectManagers(obj);
-                    return obj;
-                }
-            }
-            Constructor<T> noArg = cls.getDeclaredConstructor();
-            noArg.setAccessible(true);
-            T obj = noArg.newInstance();
+            T obj = createInstance(cls);
             instances.put(cls, obj);
             injectManagers(obj);
             return obj;
         } catch (Exception e) {
             throw new RuntimeException("Failed to create instance of " + cls.getName(), e);
+        }
+    }
+
+    /**
+     * Creates an instance of the specified class, using a constructor that accepts the plugin if available.
+     * @param cls The class to create an instance of.
+     * @return The newly created instance.
+     * @param <T> The type of the instance.
+     */
+    private <T> T createInstance(Class<T> cls) {
+        try {
+            for (Constructor<?> constructor : cls.getDeclaredConstructors()) {
+                Class<?>[] params = constructor.getParameterTypes();
+                if (params.length == 1 && (params[0].isAssignableFrom(plugin.getClass()) || params[0].isAssignableFrom(JavaPlugin.class))) {
+                    constructor.setAccessible(true);
+                    Object obj = constructor.newInstance(plugin);
+                    return cls.cast(obj);
+                }
+            }
+            Constructor<T> noArg = cls.getDeclaredConstructor();
+            noArg.setAccessible(true);
+            T obj = noArg.newInstance();
+            injectManagers(obj);
+            return obj;
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to create instance of " + cls.getName() + ". The class must have either a no-argument constructor or a constructor that accepts the plugin instance.", e);
         }
     }
 
@@ -104,14 +160,14 @@ public class ManagerRegistry {
     }
 
     private void injectManagerIntoField(Field field, Object target) {
-        if (field.isAnnotationPresent(InjectManager.class)) {
-            Object instance = getOrCreate(field.getType());
-            try {
-                field.setAccessible(true);
-                field.set(target, instance);
-            } catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
-            }
+        if (!field.isAnnotationPresent(InjectManager.class)) return;
+
+        Object instance = getOrCreate(field.getType());
+        try {
+            field.setAccessible(true);
+            field.set(target, instance);
+        } catch (IllegalAccessException e) {
+            throw new RuntimeException(e);
         }
     }
 
@@ -148,5 +204,32 @@ public class ManagerRegistry {
             }
             cls = cls.getSuperclass();
         }
+    }
+
+    private void requireManagerAnnotation(Class<?> cls) {
+        if (requireManagerAnnotation && !cls.isAnnotationPresent(Manager.class)) {
+            throw new RuntimeException("Class " + cls.getName() + " is not annotated with @Manager");
+        }
+    }
+
+    record ManagerOptions(
+            boolean eagerlyLoad,
+            ManagerScope scope
+    ) {}
+
+    /**
+     * Get the ManagerOptions for the given class.
+     * @param cls The class to get the ManagerOptions for.
+     * @return The ManagerOptions for the class.
+     */
+    private ManagerOptions getManagerOptions(Class<?> cls) {
+        if (cls.isAnnotationPresent(Manager.class)) {
+            Manager managerAnnotation = cls.getAnnotation(Manager.class);
+            return new ManagerOptions(
+                    managerAnnotation.eagerlyLoad(),
+                    managerAnnotation.scope()
+            );
+        }
+        return new ManagerOptions(false, ManagerScope.SINGLETON);
     }
 }

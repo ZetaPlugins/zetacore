@@ -6,11 +6,11 @@ import com.zetaplugins.zetacore.services.bStats.Metrics;
 import com.zetaplugins.zetacore.services.commands.AutoCommandRegistrar;
 import com.zetaplugins.zetacore.services.di.ManagerRegistry;
 import com.zetaplugins.zetacore.services.events.AutoEventRegistrar;
+import com.zetaplugins.zetacore.services.events.ManagerRegistryBuilder;
 import com.zetaplugins.zetacore.services.localization.BukkitLocalizationService;
 import com.zetaplugins.zetacore.services.messages.AdventureMessenger;
 import com.zetaplugins.zetacore.services.messages.Messenger;
 import com.zetaplugins.zetacore.services.updatechecker.GitHubUpdateChecker;
-import com.zetaplugins.zetacore.services.updatechecker.ModrinthUpdateChecker;
 import com.zetaplugins.zetacore.services.updatechecker.UpdateChecker;
 
 import java.util.ArrayList;
@@ -33,7 +33,13 @@ public final class PluginTest extends ZetaCorePlugin {
         var localizationService = new BukkitLocalizationService(this, new ArrayList<>(List.of("en-US")));
         messenger = new AdventureMessenger(localizationService);
 
-        var managerRegistry = new ManagerRegistry(this);
+        var managerRegistry = new ManagerRegistryBuilder()
+                .setPlugin(this)
+                .setPackagePrefix(PACKAGE_PREFIX)
+                .setRequireManagerAnnotation(true)
+                .build();
+        managerRegistry.initializeEagerManagers();
+        System.out.println("Initialized Managers!");
 
         new AutoEventRegistrar(this, PACKAGE_PREFIX, managerRegistry).registerAllListeners();
 

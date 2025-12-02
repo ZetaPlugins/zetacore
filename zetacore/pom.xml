@@ -6,7 +6,7 @@
 
     <groupId>com.zetaplugins</groupId>
     <artifactId>zetacore</artifactId>
-    <version>1.7.4</version>
+    <version>1.8.0</version>
     <packaging>jar</packaging>
 
     <name>ZetaCore</name>

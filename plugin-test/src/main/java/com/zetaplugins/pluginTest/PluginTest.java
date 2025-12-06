@@ -10,6 +10,7 @@ import com.zetaplugins.zetacore.services.events.ManagerRegistryBuilder;
 import com.zetaplugins.zetacore.services.localization.BukkitLocalizationService;
 import com.zetaplugins.zetacore.services.messages.AdventureMessenger;
 import com.zetaplugins.zetacore.services.messages.Messenger;
+import com.zetaplugins.zetacore.services.papi.PapiExpansionService;
 import com.zetaplugins.zetacore.services.updatechecker.GitHubUpdateChecker;
 import com.zetaplugins.zetacore.services.updatechecker.UpdateChecker;
 
@@ -30,9 +31,11 @@ public final class PluginTest extends ZetaCorePlugin {
 
         // getLogger().info("Config:\n"+ getConfig().saveToString());
 
+        // Localization and Messenger setup
         var localizationService = new BukkitLocalizationService(this, new ArrayList<>(List.of("en-US")));
         messenger = new AdventureMessenger(localizationService);
 
+        // Dependency Injection and Manager Registry setup
         var managerRegistry = new ManagerRegistryBuilder()
                 .setPlugin(this)
                 .setPackagePrefix(PACKAGE_PREFIX)
@@ -41,8 +44,8 @@ public final class PluginTest extends ZetaCorePlugin {
         managerRegistry.initializeEagerManagers();
         System.out.println("Initialized Managers!");
 
+        // Event and Command Registration
         new AutoEventRegistrar(this, PACKAGE_PREFIX, managerRegistry).registerAllListeners();
-
         var cmdRegistrar = new AutoCommandRegistrar.Builder()
                 .setPlugin(this)
                 .setPackagePrefix(PACKAGE_PREFIX)
@@ -50,18 +53,27 @@ public final class PluginTest extends ZetaCorePlugin {
                 .build();
         var commands = cmdRegistrar.registerAllCommands();
         cmdRegistrar.registerCommand("count", new CountCommand(this));
-
         getLogger().info("Registered commands: " + String.join(", ", commands));
         Map<String, String> configs = new HashMap<>();
         configs.put("config.yml", getConfig().saveToString());
         cmdRegistrar.registerCommand("testpldebug", new DebugCommandHandler("MODRINTHID", this, getPluginFile(), "testplugin.debug", configs, getMessenger()));
 
+        // bStats Metrics
         var metrics = createBStatsMetrics(0);
         metrics.addCustomChart(new Metrics.SimplePie("example_chart", () -> "example_value"));
 
+        // Update Checker
         UpdateChecker mr = new GitHubUpdateChecker(this, "ZetaPlugins", "LifeStealZ");
         mr.checkForUpdates(true);
         if (mr.isNewVersionAvailable()) getLogger().info("A new version is available: " + mr.getLatestVersion());
+
+        // PlaceholderAPI Expansion Registration
+        boolean papiSuccess = new PapiExpansionService(this)
+                .setAuthor("ZetaPlugins")
+                .addPlaceholder("example", (player, args) -> "ExampleValue for " + player.getName())
+                .addAnnotatedPlaceholders(managerRegistry.getOrCreate(CountPlaceholders.class))
+                .register();
+        getLogger().info("PAPI expansion registration successful: " + papiSuccess);
 
 //        DebugReport debugReport = ReportDataCollector.collect(
 //                "MODRINTHID",

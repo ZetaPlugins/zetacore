@@ -7,6 +7,9 @@ authors: [Kartoffelchipss]
 description: A modern essentials plugin for Minecraft
 website: strassburger.org
 
+softdepend:
+  - PlaceholderAPI
+
 commands:
   testpldebug:
     description: Debug command for testing purposes

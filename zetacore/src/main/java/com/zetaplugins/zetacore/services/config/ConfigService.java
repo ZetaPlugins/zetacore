@@ -32,7 +32,7 @@ public class ConfigService {
      * @param config The PluginConfig enum representing the desired configuration file.
      * @return The FileConfiguration object for the specified configuration file.
      */
-    public FileConfiguration getConfig(PluginConfig config) {
+    public FileConfiguration getConfig(PluginConfigFile config) {
         return getFileConfigFromFileName(config.getFileName(), true);
     }
 
@@ -42,7 +42,7 @@ public class ConfigService {
      * @param useCache Whether to use the cached version if available.
      * @return The FileConfiguration object for the specified configuration file.
      */
-    public FileConfiguration getConfig(PluginConfig config, boolean useCache) {
+    public FileConfiguration getConfig(PluginConfigFile config, boolean useCache) {
         return getFileConfigFromFileName(config.getFileName(), useCache);
     }
 
@@ -65,13 +65,39 @@ public class ConfigService {
         return getFileConfigFromFileName(fileName, useCache);
     }
 
+    /**
+     * Get a configuration mapped to the specified configuration class.
+     * @param configClass The configuration class annotated with @PluginConfig.
+     * @return An instance of the configuration class populated with values from the configuration file.
+     * @param <T> The type of the configuration class.
+     */
+    public <T> T getConfig(Class<T> configClass) {
+        return getConfig(configClass, true);
+    }
+
+    /**
+     * Get a configuration mapped to the specified configuration class.
+     * @param configClass The configuration class annotated with @PluginConfig.
+     * @param useCache Whether to use the cached version if available.
+     * @return An instance of the configuration class populated with values from the configuration file.
+     * @param <T> The type of the configuration class.
+     */
+    public <T> T getConfig(Class<T> configClass, boolean useCache) {
+        String fileName = ConfigMapper.toFileName(configClass);
+        FileConfiguration fileConfig = getConfig(fileName, useCache);
+        if (fileConfig == null) throw new IllegalStateException("Configuration file not found: " + fileName);
+
+        return ConfigMapper.map(fileConfig, configClass);
+    }
+
     private FileConfiguration getFileConfigFromFileName(String fileName, boolean useCache) {
         if (useCache && configCache.containsKey(fileName)) return configCache.get(fileName);
 
-        File configFile = new File(plugin.getDataFolder(), fileName + ".yml");
+        String fileNameWithExtension = fileName.endsWith(".yml") ? fileName : fileName + ".yml";
+        File configFile = new File(plugin.getDataFolder(), fileNameWithExtension);
         if (!configFile.exists()) {
             configFile.getParentFile().mkdirs();
-            plugin.saveResource(fileName + ".yml", false);
+            plugin.saveResource(fileNameWithExtension, false);
         }
 
         FileConfiguration fileConfig = YamlConfiguration.loadConfiguration(configFile);
@@ -84,7 +110,7 @@ public class ConfigService {
      * @param config The PluginConfig enum representing the configuration file to save.
      * @param fileConfig The FileConfiguration object to save.
      */
-    public void saveConfig(PluginConfig config, FileConfiguration fileConfig) {
+    public void saveConfig(PluginConfigFile config, FileConfiguration fileConfig) {
         saveFileConfigToFileName(config.getFileName(), fileConfig);
     }
 
@@ -98,11 +124,14 @@ public class ConfigService {
     }
 
     private void saveFileConfigToFileName(String fileName, FileConfiguration fileConfig) {
-        File configFile = new File(plugin.getDataFolder(), fileName + ".yml");
+        String fileNameWithExtension = fileName.endsWith(".yml") ? fileName : fileName + ".yml";
+        File configFile = new File(plugin.getDataFolder(), fileNameWithExtension);
         try {
             fileConfig.save(configFile);
         } catch (Exception e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to save configuration file: " + fileName + ".yml", e);
+        } finally {
+            configCache.remove(fileName);
         }
     }
 

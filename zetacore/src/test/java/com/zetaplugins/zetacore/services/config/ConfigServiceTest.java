@@ -104,7 +104,7 @@ class ConfigServiceTest {
     void getConfig_usingPluginConfig_overload_works() throws IOException {
         writeYamlFile(tempDir, "myconfig", "enabled: true");
 
-        PluginConfig cfgEnum = new PluginConfig() {
+        PluginConfigFile cfgEnum = new PluginConfigFile() {
             @Override
             public String getFileName() {
                 return "myconfig";

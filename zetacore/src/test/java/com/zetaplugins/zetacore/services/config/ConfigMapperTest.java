@@ -87,4 +87,27 @@ class ConfigMapperTest {
 
         assertThrows(ConfigMappingException.class, () -> ConfigMapper.map(invalidConfig, InvalidConfig.class));
     }
+
+    @Test
+    void testMappingMaps() {
+        MyConfig myConfig = ConfigMapper.map(config, MyConfig.class);
+        assertNotNull(myConfig.advancedItems);
+        assertEquals(2, myConfig.advancedItems.size());
+        assertTrue(myConfig.advancedItems.containsKey("magicwand"));
+        assertTrue(myConfig.advancedItems.containsKey("healingpotion"));
+
+        var wand = myConfig.advancedItems.get("magicwand");
+        assertEquals(280, wand.id);
+        assertEquals("WAND", wand.type);
+        assertEquals(2, wand.description.size());
+        assertEquals("Eine Zauberstab voller Magie", wand.description.get(0));
+        assertEquals("Kann mächtige Zauber wirken", wand.description.get(1));
+
+        var healingpotion = myConfig.advancedItems.get("healingpotion");
+        assertEquals(373, healingpotion.id);
+        assertEquals("POTION", healingpotion.type);
+        assertEquals(2, healingpotion.description.size());
+        assertEquals("Ein Trank zur Heilung", healingpotion.description.get(0));
+        assertEquals("Stellt Gesundheit wieder her", healingpotion.description.get(1));
+    }
 }

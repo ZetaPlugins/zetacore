@@ -11,6 +11,8 @@ import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 
 public class ConfigMapper {
 
@@ -70,6 +72,29 @@ public class ConfigMapper {
                 if (rawListObj instanceof List<?> rawList) {
                     List<Object> mappedList = convertList(field.getGenericType(), rawList, field.getName());
                     field.set(instance, mappedList);
+                } else if (rawListObj == null) {
+                    // nothing present - skip
+                } else {
+                    throw new ConfigMappingException("Field '" + field.getName() + "' expected a List but got " + rawListObj.getClass().getName());
+                }
+                continue;
+            }
+
+            // Maps
+            if (isMapType(fieldType)) {
+                // raw can be a ConfigurationSection or a Map/LinkedHashMap
+                Object rawMap = section.get(field.getName());
+                ConfigurationSection rawSection = section.getConfigurationSection(field.getName());
+                if (rawSection != null) {
+                    Map<?, ?> mapped = convertMap(field.getGenericType(), rawSection, field.getName());
+                    field.set(instance, mapped);
+                } else if (rawMap instanceof LinkedHashMap<?, ?> || rawMap instanceof Map<?, ?>) {
+                    Map<?, ?> mapped = convertMap(field.getGenericType(), rawMap, field.getName());
+                    field.set(instance, mapped);
+                } else if (rawMap == null) {
+                    // nothing present - skip
+                } else {
+                    throw new ConfigMappingException("Field '" + field.getName() + "' expected a Map but got " + rawMap.getClass().getName());
                 }
                 continue;
             }
@@ -85,7 +110,7 @@ public class ConfigMapper {
 
             throw new ConfigMappingException(
                     "Cannot map field '" + field.getName() + "' of type "
-                            + fieldType.getName() + ". Field must be annotated with @NestedConfig or be a primitive/List/String."
+                            + fieldType.getName() + ". Field must be annotated with @NestedConfig or be a primitive/List/Map/String."
             );
         }
     }
@@ -115,13 +140,17 @@ public class ConfigMapper {
                 List<Object> mappedList = convertList(field.getGenericType(), rawList, field.getName());
                 field.set(instance, mappedList);
 
+            } else if (isMapType(fieldType) && value instanceof LinkedHashMap<?, ?> rawLinkedMap) {
+                Map<?, ?> mappedMap = convertMap(field.getGenericType(), rawLinkedMap, field.getName());
+                field.set(instance, mappedMap);
+
             } else if (isSimpleType(fieldType)) {
                 field.set(instance, value);
 
             } else {
                 throw new ConfigMappingException(
                         "Cannot map field '" + field.getName() + "' of type "
-                                + fieldType.getName() + ". Field must be annotated with @NestedConfig or be a primitive/List/String."
+                                + fieldType.getName() + ". Field must be annotated with @NestedConfig or be a primitive/List/Map/String."
                 );
             }
         }
@@ -180,6 +209,112 @@ public class ConfigMapper {
     }
 
     /**
+     * Convert a raw map (ConfigurationSection or LinkedHashMap/Map) into a mapped Map.<br/>
+     * Supports:
+     *  - Map<String, Primitive/String/Number/Boolean>
+     *  - Map<String, @NestedConfig> where each value is a LinkedHashMap or ConfigurationSection
+     *
+     * @param genericType the generic type of the field (e.g. Map<String,MyType>)
+     * @param rawMap the raw map object from YAML/Configuration (either ConfigurationSection or Map)
+     * @param fieldName name of the field (used for error messages)
+     * @return a newly constructed and mapped Map<Object,Object> (LinkedHashMap to preserve order)
+     * @throws Exception if mapping fails
+     */
+    private static Map<Object, Object> convertMap(Type genericType, Object rawMap, String fieldName) throws Exception {
+        Map<Object, Object> result = new LinkedHashMap<>();
+
+        Class<?> keyClass = Object.class;
+        Class<?> valueClass = Object.class;
+
+        if (genericType instanceof ParameterizedType parameterizedType) {
+            Type[] typeArgs = parameterizedType.getActualTypeArguments();
+            if (typeArgs.length == 2) {
+                keyClass = typeArgs[0] instanceof Class<?> kc ? (Class<?>) typeArgs[0] : Object.class;
+                valueClass = typeArgs[1] instanceof Class<?> vc ? (Class<?>) typeArgs[1] : Object.class;
+            }
+        }
+
+        final Class<?> finalValueClass = valueClass;
+        final String finalFieldName = fieldName;
+
+        java.util.function.Function<Object, Object> mapValueMapper = new java.util.function.Function<>() {
+            @Override
+            public Object apply(Object rawValue) {
+                try {
+                    if (finalValueClass.isAnnotationPresent(NestedConfig.class)) {
+                        if (rawValue instanceof LinkedHashMap<?, ?> itemMap) {
+                            Object nestedInstance = finalValueClass.getConstructor().newInstance();
+                            mapFromMap(itemMap, nestedInstance);
+                            return nestedInstance;
+                        } else if (rawValue instanceof ConfigurationSection itemSection) {
+                            Object nestedInstance = finalValueClass.getConstructor().newInstance();
+                            mapSection(itemSection, nestedInstance);
+                            return nestedInstance;
+                        } else {
+                            throw new ConfigMappingException(
+                                    "Cannot map map value for field '" + finalFieldName
+                                            + "': unsupported item type " + (rawValue == null ? "null" : rawValue.getClass().getName()));
+                        }
+                    } else if (isSimpleType(finalValueClass) || finalValueClass == Object.class) {
+                        return rawValue;
+                    } else {
+                        throw new ConfigMappingException(
+                                "Cannot map map value of type '" + finalValueClass.getName() + "' in field '"
+                                        + finalFieldName + "'. Map value type must be annotated with @NestedConfig or be a primitive/String."
+                        );
+                    }
+                } catch (Exception e) {
+                    if (e instanceof RuntimeException) throw (RuntimeException) e;
+                    throw new RuntimeException(e);
+                }
+            }
+        };
+
+        if (rawMap instanceof ConfigurationSection section) {
+            // iterate keys
+            for (String key : section.getKeys(false)) {
+                Object rawValue = section.get(key);
+                Object mappedValue = mapValueMapper.apply(rawValue);
+                Object mappedKey = convertMapKey(key, keyClass, fieldName);
+                result.put(mappedKey, mappedValue);
+            }
+        } else if (rawMap instanceof Map<?, ?> map) {
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                Object rawKey = entry.getKey();
+                Object rawValue = entry.getValue();
+                Object mappedKey = convertMapKey(rawKey, keyClass, fieldName);
+                Object mappedValue = mapValueMapper.apply(rawValue);
+                result.put(mappedKey, mappedValue);
+            }
+        } else {
+            throw new ConfigMappingException("Field '" + fieldName + "' expected a map-like structure but got " + (rawMap == null ? "null" : rawMap.getClass().getName()));
+        }
+
+        return result;
+    }
+
+    private static Object convertMapKey(Object rawKey, Class<?> keyClass, String fieldName) throws ConfigMappingException {
+        if (keyClass == String.class || keyClass == Object.class) {
+            return String.valueOf(rawKey);
+        } else if (keyClass.isAssignableFrom(rawKey.getClass())) {
+            return rawKey;
+        } else {
+            // try basic conversions for common key types (e.g., Integer, Long)
+            try {
+                String keyStr = String.valueOf(rawKey);
+                if (keyClass == Integer.class || keyClass == int.class) return Integer.valueOf(keyStr);
+                if (keyClass == Long.class || keyClass == long.class) return Long.valueOf(keyStr);
+                if (keyClass == Short.class || keyClass == short.class) return Short.valueOf(keyStr);
+                if (keyClass == Byte.class || keyClass == byte.class) return Byte.valueOf(keyStr);
+                if (keyClass == Double.class || keyClass == double.class) return Double.valueOf(keyStr);
+                if (keyClass == Float.class || keyClass == float.class) return Float.valueOf(keyStr);
+                if (keyClass == Boolean.class || keyClass == boolean.class) return Boolean.valueOf(keyStr);
+            } catch (Exception ignored) { }
+            throw new ConfigMappingException("Cannot convert map key '" + rawKey + "' to required key type '" + keyClass.getName() + "' for field '" + fieldName + "'");
+        }
+    }
+
+    /**
      * Check if the provided type is a primitive, String, Number, Boolean
      */
     private static boolean isSimpleType(Class<?> type) {
@@ -188,5 +323,9 @@ public class ConfigMapper {
 
     private static boolean isListType(Class<?> type) {
         return List.class.isAssignableFrom(type);
+    }
+
+    private static boolean isMapType(Class<?> type) {
+        return Map.class.isAssignableFrom(type);
     }
 }

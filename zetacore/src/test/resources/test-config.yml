@@ -1,21 +1,7 @@
-# This file is part of the plugin-test project.
+# This is to test the configuration library's ability to parse various data types and structures.
 lang: "de-DE"
 
-# The language code for the plugin. This is used to determine the language of the plugin.
-# The default language is English (en-US).
-# You can change this to any other language code supported by the plugin.
-
-# The plugin will use this language code to load the appropriate language file.
-# If you want to add a new language, you can create a new file in the `lang` directory with the appropriate language code.
-
-# Example: If you want to use French, you can set this to "fr-FR".
-# If you want to use Spanish, you can set this to "es-ES".
-
 settings:
-  # The settings for the plugin.
-  # You can add any settings you want here.
-  # The plugin will use these settings to configure itself.
-
   # Example: If you want to enable a feature, you can set it to true.
   enableFeature: true
 
@@ -24,6 +10,7 @@ settings:
     - "LustigerName2"
     - "LustigerName3"
 
+# Test lists of complex objects
 items:
   - name: "Schwert"
     id: 276
@@ -41,3 +28,18 @@ items:
         lineNumber: 1
       - loreLine: "Schützt vor Angriffen"
         lineNumber: 3
+
+# Test mapping maps
+advancedItems:
+  magicwand:
+    id: 280
+    type: "WAND"
+    description:
+      - "Eine Zauberstab voller Magie"
+      - "Kann mächtige Zauber wirken"
+  healingpotion:
+    id: 373
+    type: "POTION"
+    description:
+      - "Ein Trank zur Heilung"
+      - "Stellt Gesundheit wieder her"

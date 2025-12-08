@@ -99,3 +99,9 @@ Idk figure it out yourself lol
 ### 3. Read the javadocs
 
 You can find the javadocs [here](https://jd.zetacore.zetaplugins.com/).
+
+Usage examples and guides will be added in the future. For now, please refer to the javadocs for information on how to use the library.
+
+## License
+
+zetacore is licensed under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for more details.

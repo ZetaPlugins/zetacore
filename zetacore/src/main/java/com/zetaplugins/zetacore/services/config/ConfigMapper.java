@@ -22,7 +22,15 @@ public class ConfigMapper {
         return annotation.value();
     }
 
-    public static <T> T map(FileConfiguration fileConfiguration, Class<T> configClass) {
+    /**
+     * Map values from a FileConfiguration into a new instance of the provided configClass.
+     *
+     * @param fileConfiguration the FileConfiguration containing configuration values
+     * @param configClass the class to map the configuration into
+     * @return a new instance of configClass populated with configuration values
+     * @throws ConfigMappingException if mapping fails
+     */
+    public static <T> T map(FileConfiguration fileConfiguration, Class<T> configClass) throws ConfigMappingException {
         try {
             T instance = configClass.getConstructor().newInstance();
             mapSection((ConfigurationSection) fileConfiguration, instance);

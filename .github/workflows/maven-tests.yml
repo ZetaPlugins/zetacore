@@ -40,4 +40,4 @@ jobs:
         uses: actions/upload-artifact@v5
         with:
           name: test-results
-          path: target/zetacore/target/surefire-reports/*.xml
+          path: zetacore/target/surefire-reports/*.xml

@@ -37,3 +37,18 @@ items:
     lore:
       - "Ein starker Schild"
       - "Schützt vor Angriffen"
+
+
+advanceditems:
+  magicwand:
+    id: 280
+    power: 50
+    description:
+      - "Eine Zauberstab voller Magie"
+      - "Kann mächtige Zauber wirken"
+  healingpotion:
+    id: 373
+    healingAmount: 20
+    description:
+      - "Ein Trank zur Heilung"
+      - "Stellt Gesundheit wieder her"

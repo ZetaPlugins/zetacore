@@ -9,7 +9,7 @@ public class ItemConfigSection {
     private String name;
     private int id;
     private double price;
-    private List<String> lore;
+    private List<ItemLoreConfigLine> lore;
 
     public String getName() {
         return name;
@@ -23,7 +23,7 @@ public class ItemConfigSection {
         return price;
     }
 
-    public List<String> getLore() {
+    public List<ItemLoreConfigLine> getLore() {
         return lore;
     }
 

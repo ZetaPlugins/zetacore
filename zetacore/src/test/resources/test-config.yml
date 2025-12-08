@@ -29,11 +29,15 @@ items:
     id: 276
     price: 15.99
     lore:
-      - "Ein mächtiges Schwert"
-      - "Geschmiedet in den Tiefen der Erde"
+      - loreLine: "Ein mächtiges Schwert"
+        lineNumber: 1
+      - loreLine: "Geschmiedet in den Tiefen der Erde"
+        lineNumber: 2
   - name: "Schild"
     id: 311
     price: 10.49
     lore:
-      - "Ein starker Schild"
-      - "Schützt vor Angriffen"
+      - loreLine: "Ein starker Schild"
+        lineNumber: 1
+      - loreLine: "Schützt vor Angriffen"
+        lineNumber: 3

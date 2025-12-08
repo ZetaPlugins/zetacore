@@ -40,13 +40,20 @@ class ConfigMapperTest {
         assertEquals("Schwert", sword.getName());
         assertEquals(276, sword.getId());
         assertEquals(15.99, sword.getPrice(), 0.001);
-        assertEquals(List.of("Ein mächtiges Schwert", "Geschmiedet in den Tiefen der Erde"), sword.getLore());
+        assertEquals("Ein mächtiges Schwert", sword.getLore().get(0).getLoreLine());
+        assertEquals(1, sword.getLore().get(0).getLineNumber());
+        assertEquals("Geschmiedet in den Tiefen der Erde", sword.getLore().get(1).getLoreLine());
+        assertEquals(2, sword.getLore().get(1).getLineNumber());
+
 
         ItemConfigSection shield = myConfig.items.get(1);
         assertEquals("Schild", shield.getName());
         assertEquals(311, shield.getId());
         assertEquals(10.49, shield.getPrice(), 0.001);
-        assertEquals(List.of("Ein starker Schild", "Schützt vor Angriffen"), shield.getLore());
+        assertEquals("Ein starker Schild", shield.getLore().get(0).getLoreLine());
+        assertEquals(1, shield.getLore().get(0).getLineNumber());
+        assertEquals("Schützt vor Angriffen", shield.getLore().get(1).getLoreLine());
+        assertEquals(3, shield.getLore().get(1).getLineNumber());
     }
 
     @Test

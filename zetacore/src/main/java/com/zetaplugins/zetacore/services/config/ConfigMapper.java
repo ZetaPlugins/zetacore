@@ -22,14 +22,6 @@ public class ConfigMapper {
         return annotation.value();
     }
 
-    /**
-     * Map a FileConfiguration to an instance of the specified configuration class.
-     *
-     * @param fileConfiguration The FileConfiguration to map from.
-     * @param configClass The class to map to.
-     * @param <T> The type of the configuration class.
-     * @return An instance of the configuration class populated with data from the FileConfiguration.
-     */
     public static <T> T map(FileConfiguration fileConfiguration, Class<T> configClass) {
         try {
             T instance = configClass.getConstructor().newInstance();
@@ -41,12 +33,11 @@ public class ConfigMapper {
     }
 
     /**
-     * Recursively map a ConfigurationSection to an instance of the specified class.
+     * Map values from a ConfigurationSection into the provided instance.
      *
-     * @param section The ConfigurationSection to map from.
-     * @param instance The instance to populate.
-     * @param <T> The type of the instance.
-     * @throws Exception If mapping fails.
+     * @param section the ConfigurationSection containing configuration values
+     * @param instance the instance to populate
+     * @throws Exception if mapping fails
      */
     private static <T> void mapSection(ConfigurationSection section, T instance) throws Exception {
         Class<?> configClass = instance.getClass();
@@ -58,7 +49,7 @@ public class ConfigMapper {
             // Nested objects annotated with @NestedConfig
             if (fieldType.isAnnotationPresent(NestedConfig.class)) {
                 ConfigurationSection nestedSection = section.getConfigurationSection(field.getName());
-                if (nestedSection == null) continue; // no data to map
+                if (nestedSection == null) continue;
                 Object nestedInstance = fieldType.getConstructor().newInstance();
                 mapSection(nestedSection, nestedInstance);
                 field.set(instance, nestedInstance);
@@ -66,38 +57,10 @@ public class ConfigMapper {
             }
 
             // Lists
-            if (List.class.isAssignableFrom(fieldType)) {
+            if (isListType(fieldType)) {
                 Object rawListObj = section.get(field.getName());
                 if (rawListObj instanceof List<?> rawList) {
-                    List<Object> mappedList = new ArrayList<>();
-                    Type genericType = field.getGenericType();
-                    if (genericType instanceof ParameterizedType parameterizedType) {
-                        Type listType = parameterizedType.getActualTypeArguments()[0];
-                        Class<?> listClass = listType instanceof Class<?> c ? c : Object.class;
-
-                        for (Object item : rawList) {
-                            if (listClass.isAnnotationPresent(NestedConfig.class)) {
-                                if (item instanceof ConfigurationSection itemSection) {
-                                    Object nestedInstance = listClass.getConstructor().newInstance();
-                                    mapSection(itemSection, nestedInstance);
-                                    mappedList.add(nestedInstance);
-                                } else if (item instanceof LinkedHashMap<?, ?> map) {
-                                    Object nestedInstance = listClass.getConstructor().newInstance();
-                                    mapFromMap(map, nestedInstance);
-                                    mappedList.add(nestedInstance);
-                                }
-                            } else if (isSimpleType(listClass)) {
-                                mappedList.add(item); // primitive or String
-                            } else {
-                                throw new ConfigMappingException(
-                                        "Cannot map list item of type '" + listClass.getName() + "' in field '"
-                                                + field.getName() + "'. List item type must be annotated with @NestedConfig or be a primitive/String."
-                                );
-                            }
-                        }
-                    } else {
-                        mappedList.addAll(rawList); // raw list
-                    }
+                    List<Object> mappedList = convertList(field.getGenericType(), rawList, field.getName());
                     field.set(instance, mappedList);
                 }
                 continue;
@@ -119,6 +82,13 @@ public class ConfigMapper {
         }
     }
 
+    /**
+     * Map values from a LinkedHashMap (YAML parser output) into the provided instance.
+     *
+     * @param map the LinkedHashMap containing configuration values
+     * @param instance the instance to populate
+     * @throws Exception if mapping fails
+     */
     private static void mapFromMap(LinkedHashMap<?, ?> map, Object instance) throws Exception {
         Class<?> clazz = instance.getClass();
         for (Field field : clazz.getDeclaredFields()) {
@@ -132,8 +102,14 @@ public class ConfigMapper {
                 Object nestedInstance = fieldType.getConstructor().newInstance();
                 mapFromMap(nestedMap, nestedInstance);
                 field.set(instance, nestedInstance);
-            } else if (isSimpleType(fieldType) || List.class.isAssignableFrom(fieldType)) {
+
+            } else if (isListType(fieldType) && value instanceof List<?> rawList) {
+                List<Object> mappedList = convertList(field.getGenericType(), rawList, field.getName());
+                field.set(instance, mappedList);
+
+            } else if (isSimpleType(fieldType)) {
                 field.set(instance, value);
+
             } else {
                 throw new ConfigMappingException(
                         "Cannot map field '" + field.getName() + "' of type "
@@ -143,7 +119,66 @@ public class ConfigMapper {
         }
     }
 
+    /**
+     * Convert a raw list (from YAML parser / LinkedHashMap representation) into a mapped list.<br/>
+     * Supports:<br/>
+     *  - Lists of primitives / String / Number / Boolean (keeps items as-is)<br/>
+     *  - Lists of @NestedConfig classes where items are LinkedHashMap or ConfigurationSection<br/>
+     *
+     * @param genericType the generic type of the field (e.g. List<MyType>)
+     * @param rawList the raw list object from YAML/Configuration
+     * @param fieldName name of the field (used for error messages)
+     * @return a newly constructed and mapped List<Object>
+     * @throws Exception if mapping fails
+     */
+    private static List<Object> convertList(Type genericType, List<?> rawList, String fieldName) throws Exception {
+        List<Object> mappedList = new ArrayList<>();
+
+        if (genericType instanceof ParameterizedType parameterizedType) {
+            Type listType = parameterizedType.getActualTypeArguments()[0];
+            Class<?> listClass = listType instanceof Class<?> c ? c : Object.class;
+
+            for (Object item : rawList) {
+                if (listClass.isAnnotationPresent(NestedConfig.class)) {
+                    if (item instanceof LinkedHashMap<?, ?> itemMap) {
+                        Object nestedInstance = listClass.getConstructor().newInstance();
+                        mapFromMap(itemMap, nestedInstance);
+                        mappedList.add(nestedInstance);
+                    } else if (item instanceof ConfigurationSection itemSection) {
+                        Object nestedInstance = listClass.getConstructor().newInstance();
+                        mapSection(itemSection, nestedInstance);
+                        mappedList.add(nestedInstance);
+                    } else {
+                        throw new ConfigMappingException(
+                                "Cannot map list item for field '" + fieldName + "': unsupported item type "
+                                        + (item == null ? "null" : item.getClass().getName())
+                        );
+                    }
+                } else if (isSimpleType(listClass)) {
+                    mappedList.add(item);
+                } else {
+                    throw new ConfigMappingException(
+                            "Cannot map list item of type '" + listClass.getName() + "' in field '"
+                                    + fieldName + "'. List item type must be annotated with @NestedConfig or be a primitive/String."
+                    );
+                }
+            }
+        } else {
+            // raw list, so just add all items as is
+            mappedList.addAll(rawList);
+        }
+
+        return mappedList;
+    }
+
+    /**
+     * Check if the provided type is a primitive, String, Number, Boolean
+     */
     private static boolean isSimpleType(Class<?> type) {
         return type.isPrimitive() || type == String.class || Number.class.isAssignableFrom(type) || type == Boolean.class;
+    }
+
+    private static boolean isListType(Class<?> type) {
+        return List.class.isAssignableFrom(type);
     }
 }

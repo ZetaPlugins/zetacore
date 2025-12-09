@@ -12,6 +12,7 @@ import com.zetaplugins.zetacore.services.messages.AdventureMessenger;
 import com.zetaplugins.zetacore.services.messages.Messenger;
 import com.zetaplugins.zetacore.services.papi.PapiExpansionService;
 import com.zetaplugins.zetacore.services.updatechecker.GitHubUpdateChecker;
+import com.zetaplugins.zetacore.services.updatechecker.HangarUpdateChecker;
 import com.zetaplugins.zetacore.services.updatechecker.UpdateChecker;
 
 import java.util.ArrayList;
@@ -63,7 +64,7 @@ public final class PluginTest extends ZetaCorePlugin {
         metrics.addCustomChart(new Metrics.SimplePie("example_chart", () -> "example_value"));
 
         // Update Checker
-        UpdateChecker mr = new GitHubUpdateChecker(this, "ZetaPlugins", "LifeStealZ");
+        UpdateChecker mr = new HangarUpdateChecker(this, "KartoffelChipss", "EssentialZ");
         mr.checkForUpdates(true);
         if (mr.isNewVersionAvailable()) getLogger().info("A new version is available: " + mr.getLatestVersion());
 

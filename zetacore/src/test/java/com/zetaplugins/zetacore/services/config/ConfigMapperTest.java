@@ -2,6 +2,7 @@ package com.zetaplugins.zetacore.services.config;
 
 import com.zetaplugins.zetacore.services.config.testconfigs.ItemConfigSection;
 import com.zetaplugins.zetacore.services.config.testconfigs.MyConfig;
+import com.zetaplugins.zetacore.services.config.testconfigs.SomeStatus;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.junit.jupiter.api.BeforeEach;
@@ -35,6 +36,13 @@ class ConfigMapperTest {
 
         assertNotNull(myConfig.items);
         assertEquals(2, myConfig.items.size());
+
+        assertEquals(SomeStatus.ACTIVE, myConfig.someStatus);
+
+        assertEquals(3, myConfig.statusList.size());
+        assertEquals(SomeStatus.ACTIVE, myConfig.statusList.get(0));
+        assertEquals(SomeStatus.INACTIVE, myConfig.statusList.get(1));
+        assertEquals(SomeStatus.PENDING, myConfig.statusList.get(2));
 
         ItemConfigSection sword = myConfig.items.get(0);
         assertEquals("Schwert", sword.getName());

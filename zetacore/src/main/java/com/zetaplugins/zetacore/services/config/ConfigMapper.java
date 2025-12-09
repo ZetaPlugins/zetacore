@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.HashMap;
 
 public class ConfigMapper {
 
@@ -96,6 +95,16 @@ public class ConfigMapper {
                 } else {
                     throw new ConfigMappingException("Field '" + field.getName() + "' expected a Map but got " + rawMap.getClass().getName());
                 }
+                continue;
+            }
+
+            // Enum types
+            if (fieldType.isEnum()) {
+                String enumName = section.getString(field.getName());
+                if (enumName == null) continue;
+                String upperEnumName = enumName.toUpperCase();
+                Object enumValue = Enum.valueOf((Class<Enum>) fieldType, upperEnumName);
+                field.set(instance, enumValue);
                 continue;
             }
 
@@ -188,6 +197,17 @@ public class ConfigMapper {
                     } else {
                         throw new ConfigMappingException(
                                 "Cannot map list item for field '" + fieldName + "': unsupported item type "
+                                        + (item == null ? "null" : item.getClass().getName())
+                        );
+                    }
+                } else if (listClass.isEnum()) {
+                    if (item instanceof String enumName) {
+                        String upperEnumName = enumName.toUpperCase();
+                        Object enumValue = Enum.valueOf((Class<Enum>) listClass, upperEnumName);
+                        mappedList.add(enumValue);
+                    } else {
+                        throw new ConfigMappingException(
+                                "Cannot map list item for field '" + fieldName + "': expected enum name as String but got "
                                         + (item == null ? "null" : item.getClass().getName())
                         );
                     }

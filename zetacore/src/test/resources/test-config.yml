@@ -1,6 +1,13 @@
 # This is to test the configuration library's ability to parse various data types and structures.
 lang: "de-DE"
 
+someStatus: "active"
+
+statusList:
+  - "active"
+  - "inactive"
+  - "pending"
+
 settings:
   # Example: If you want to enable a feature, you can set it to true.
   enableFeature: true

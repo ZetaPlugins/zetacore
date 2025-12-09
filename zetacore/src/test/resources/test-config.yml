@@ -3,6 +3,8 @@ lang: "de-DE"
 
 someStatus: "active"
 
+attr-with-dash: "test-value"
+
 statusList:
   - "active"
   - "inactive"

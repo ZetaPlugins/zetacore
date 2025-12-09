@@ -33,6 +33,7 @@ class ConfigMapperTest {
         assertNotNull(myConfig.settings);
         assertTrue(myConfig.settings.enableFeature);
         assertEquals(List.of("LustigerName1", "LustigerName2", "LustigerName3"), myConfig.settings.funnynames);
+        assertEquals("test-value", myConfig.attrWithDash);
 
         assertNotNull(myConfig.items);
         assertEquals(2, myConfig.items.size());

@@ -1,5 +1,6 @@
 package com.zetaplugins.zetacore.services.config;
 
+import com.zetaplugins.zetacore.annotations.ConfigAttribute;
 import com.zetaplugins.zetacore.annotations.PluginConfig;
 import com.zetaplugins.zetacore.annotations.NestedConfig;
 import org.bukkit.configuration.ConfigurationSection;
@@ -54,10 +55,11 @@ public class ConfigMapper {
         for (Field field : configClass.getDeclaredFields()) {
             field.setAccessible(true);
             Class<?> fieldType = field.getType();
+            String fieldName = getFieldName(field);
 
             // Nested objects annotated with @NestedConfig
             if (fieldType.isAnnotationPresent(NestedConfig.class)) {
-                ConfigurationSection nestedSection = section.getConfigurationSection(field.getName());
+                ConfigurationSection nestedSection = section.getConfigurationSection(fieldName);
                 if (nestedSection == null) continue;
                 Object nestedInstance = fieldType.getConstructor().newInstance();
                 mapSection(nestedSection, nestedInstance);
@@ -67,9 +69,9 @@ public class ConfigMapper {
 
             // Lists
             if (isListType(fieldType)) {
-                Object rawListObj = section.get(field.getName());
+                Object rawListObj = section.get(fieldName);
                 if (rawListObj instanceof List<?> rawList) {
-                    List<Object> mappedList = convertList(field.getGenericType(), rawList, field.getName());
+                    List<Object> mappedList = convertList(field.getGenericType(), rawList, fieldName);
                     field.set(instance, mappedList);
                 } else if (rawListObj == null) {
                     // nothing present - skip
@@ -82,13 +84,13 @@ public class ConfigMapper {
             // Maps
             if (isMapType(fieldType)) {
                 // raw can be a ConfigurationSection or a Map/LinkedHashMap
-                Object rawMap = section.get(field.getName());
-                ConfigurationSection rawSection = section.getConfigurationSection(field.getName());
+                Object rawMap = section.get(fieldName);
+                ConfigurationSection rawSection = section.getConfigurationSection(fieldName);
                 if (rawSection != null) {
-                    Map<?, ?> mapped = convertMap(field.getGenericType(), rawSection, field.getName());
+                    Map<?, ?> mapped = convertMap(field.getGenericType(), rawSection, fieldName);
                     field.set(instance, mapped);
                 } else if (rawMap instanceof LinkedHashMap<?, ?> || rawMap instanceof Map<?, ?>) {
-                    Map<?, ?> mapped = convertMap(field.getGenericType(), rawMap, field.getName());
+                    Map<?, ?> mapped = convertMap(field.getGenericType(), rawMap, fieldName);
                     field.set(instance, mapped);
                 } else if (rawMap == null) {
                     // nothing present - skip
@@ -100,7 +102,7 @@ public class ConfigMapper {
 
             // Enum types
             if (fieldType.isEnum()) {
-                String enumName = section.getString(field.getName());
+                String enumName = section.getString(fieldName);
                 if (enumName == null) continue;
                 String upperEnumName = enumName.toUpperCase();
                 Object enumValue = Enum.valueOf((Class<Enum>) fieldType, upperEnumName);
@@ -110,7 +112,7 @@ public class ConfigMapper {
 
             // Primitive / String / basic types
             if (isSimpleType(fieldType)) {
-                Object value = section.get(field.getName());
+                Object value = section.get(fieldName);
                 if (value != null) {
                     field.set(instance, value);
                 }
@@ -135,7 +137,7 @@ public class ConfigMapper {
         Class<?> clazz = instance.getClass();
         for (Field field : clazz.getDeclaredFields()) {
             field.setAccessible(true);
-            Object value = map.get(field.getName());
+            Object value = map.get(getFieldName(field));
             if (value == null) continue;
 
             Class<?> fieldType = field.getType();
@@ -146,11 +148,11 @@ public class ConfigMapper {
                 field.set(instance, nestedInstance);
 
             } else if (isListType(fieldType) && value instanceof List<?> rawList) {
-                List<Object> mappedList = convertList(field.getGenericType(), rawList, field.getName());
+                List<Object> mappedList = convertList(field.getGenericType(), rawList, getFieldName(field));
                 field.set(instance, mappedList);
 
             } else if (isMapType(fieldType) && value instanceof LinkedHashMap<?, ?> rawLinkedMap) {
-                Map<?, ?> mappedMap = convertMap(field.getGenericType(), rawLinkedMap, field.getName());
+                Map<?, ?> mappedMap = convertMap(field.getGenericType(), rawLinkedMap, getFieldName(field));
                 field.set(instance, mappedMap);
 
             } else if (isSimpleType(fieldType)) {
@@ -347,5 +349,13 @@ public class ConfigMapper {
 
     private static boolean isMapType(Class<?> type) {
         return Map.class.isAssignableFrom(type);
+    }
+
+    private static String getFieldName(Field field) {
+        if (field.isAnnotationPresent(ConfigAttribute.class)) {
+            ConfigAttribute annotation = field.getAnnotation(ConfigAttribute.class);
+            return annotation.name();
+        }
+        return field.getName();
     }
 }

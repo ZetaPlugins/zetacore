@@ -1,107 +1,28 @@
-# zetacore
+# ZetaCore
 
-zetacore is the core library for plugins made by ZetaPlugins.
+ZetaCore is a lightweight Minecraft (Paper) plugin framework designed to streamline plugin development. It replaces verbose boilerplate with clean, annotation-based command and tab-completion registration. No more plugin.yml definitions. ZetaCore also provides consistent message formatting utilities, type-safe configuration mapped directly to Java classes, built-in localization support, simple but powerful dependency injection, and a collection of helpful utilities for modern Paper plugins.
 
--> [javadocs](https://jd.zetacore.zetaplugins.com)
+## Features
 
-## Overview
+- **Annotation-Based Command Registration**: Define commands and tab completions using annotations, eliminating the need for plugin.yml entries.
+- **Easier Command Arguments**: Simplified handling of command arguments with built-in parsers for common types.
+- **Type-Safe Configuration**: Map configuration files directly to Java classes for easy access and management.
+- **Localization Support**: Built-in support for multiple languages, making it easy to create multilingual plugins.
+- **Dependency Injection**: Simplifies the management of dependencies within your plugin. No more having tons of getters in your main class.
+- **Message Formatting Utilities**: Consistent and easy-to-use utilities for formatting messages sent to players.
+- **Utility Functions**: A collection of helpful utilities to simplify common tasks in Paper plugin development.
+- **Better PlaceholderAPI Integration**: Seamless integration with PlaceholderAPI for dynamic content in messages.
 
-The **zetacore** project is organized into several packages, each responsible for a specific part of the library:
+## Getting Started
 
-- **`commands`** – Core command framework.
-- **`debug`** – Utilities for generating debug reports and communicating with `debug.zetaplugins.com`.
-- **`services.bstats`** – Convenience wrapper for bStats metrics.
-- **`services.commands`** – Components related to command registration.
-- **`services.config`** – Tools for managing and reading configuration files.
-- **`services.di`** – Dependency injection framework (annotations are found in `annotations`).
-- **`services.events`** – Classes for registering and managing event listeners.
-- **`services.localization`** – Localization utilities.
-- **`services.messages`** – Message formatting utilities.
-- **`services.updatechecker`** – Prebuilt update checker implementations.
-- **`annotations`** – Annotations for the DI framework and auto-registration helpers.
+To get started with ZetaCore, please refer to the [documentation](https://docs.zetaplugins.com/zetacore) for installation instructions and usage examples.
 
-## Usage
+## Documentation
 
-### 1. Include zetacore as a dependency
+Comprehensive documentation is available at [https://docs.zetaplugins.com/zetacore](https://docs.zetaplugins.com/zetacore). It includes guides on installation, configuration, command registration, localization, and more.
 
-#### Maven
-
-```xml
-<repositories>
-    <repository>
-        <id>zetaplugins</id>
-        <url>https://maven.zetaplugins.com/</url>
-    </repository>
-</repositories>
-
-<dependencies>
-    <dependency>
-        <groupId>com.zetaplugins</groupId>
-        <artifactId>zetacore</artifactId>
-        <version>{latest_version}</version>
-    </dependency>
-</dependencies>
-```
-
-#### Gradle
-
-```gradle
-repositories {
-    maven { url 'https://maven.zetaplugins.com/' }
-}
-
-dependencies {
-    implementation 'com.zetaplugins:zetacore:{latest_version}'
-}
-```
-
-### 2. Shade into the plugin jar
-
-#### Maven
-
-To shade zetacore into the plugin jar, add the following to the plugins section of the `pom.xml`:
-
-```xml
-<plugin>
-    <groupId>org.apache.maven.plugins</groupId>
-    <artifactId>maven-shade-plugin</artifactId>
-    <version>3.6.0</version>
-    <executions>
-        <execution>
-            <phase>package</phase>
-            <goals>
-                <goal>shade</goal>
-            </goals>
-        </execution>
-    </executions>
-    <configuration>
-        <artifactSet>
-            <includes>
-                <include>com.zetaplugins:zetacore</include>
-            </includes>
-        </artifactSet>
-        <transformers>
-            <transformer
-                    implementation="org.apache.maven.plugins.shade.resource.ServicesResourceTransformer" />
-            <transformer
-                    implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                <mainClass>{main_class_path}</mainClass>
-            </transformer>
-        </transformers>
-    </configuration>
-</plugin>
-```
-
-#### Gradle
-
-Idk figure it out yourself lol
-
-### 3. Read the javadocs
-
-You can find the javadocs [here](https://jd.zetacore.zetaplugins.com/).
-
-Usage examples and guides will be added in the future. For now, please refer to the javadocs for information on how to use the library.
+You can find the Javadoc API reference at [https://jd.zetacore.zetaplugins.com](https://jd.zetacore.zetaplugins.com).
 
 ## License
 
-zetacore is licensed under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for more details.
+ZetaCore is licensed under the GNU General Public License v3.0. See the [LICENSE](LICENSE) file for more details.

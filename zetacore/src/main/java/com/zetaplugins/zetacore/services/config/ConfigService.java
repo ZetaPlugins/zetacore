@@ -91,17 +91,18 @@ public class ConfigService {
     }
 
     private FileConfiguration getFileConfigFromFileName(String fileName, boolean useCache) {
-        if (useCache && configCache.containsKey(fileName)) return configCache.get(fileName);
+        String normalizedFileName = normalizeFileName(fileName);
 
-        String fileNameWithExtension = fileName.endsWith(".yml") ? fileName : fileName + ".yml";
-        File configFile = new File(plugin.getDataFolder(), fileNameWithExtension);
+        if (useCache && configCache.containsKey(normalizedFileName)) return configCache.get(normalizedFileName);
+
+        File configFile = new File(plugin.getDataFolder(), normalizedFileName);
         if (!configFile.exists()) {
             configFile.getParentFile().mkdirs();
-            plugin.saveResource(fileNameWithExtension, false);
+            plugin.saveResource(normalizedFileName, false);
         }
 
         FileConfiguration fileConfig = YamlConfiguration.loadConfiguration(configFile);
-        if (useCache) configCache.put(fileName, fileConfig);
+        if (useCache) configCache.put(normalizedFileName, fileConfig);
         return fileConfig;
     }
 
@@ -124,15 +125,24 @@ public class ConfigService {
     }
 
     private void saveFileConfigToFileName(String fileName, FileConfiguration fileConfig) {
-        String fileNameWithExtension = fileName.endsWith(".yml") ? fileName : fileName + ".yml";
-        File configFile = new File(plugin.getDataFolder(), fileNameWithExtension);
+        String normalizedFileName = normalizeFileName(fileName);
+        File configFile = new File(plugin.getDataFolder(), normalizedFileName);
         try {
             fileConfig.save(configFile);
         } catch (Exception e) {
-            plugin.getLogger().log(Level.SEVERE, "Failed to save configuration file: " + fileName + ".yml", e);
+            plugin.getLogger().log(Level.SEVERE, "Failed to save configuration file: " + normalizedFileName, e);
         } finally {
-            configCache.remove(fileName);
+            configCache.remove(normalizedFileName);
         }
+    }
+
+    /**
+     * Normalize the file name to ensure it has the correct .yml extension.
+     * @param fileName The original file name.
+     * @return The normalized file name with .yml extension.
+     */
+    private String normalizeFileName(String fileName) {
+        return fileName.endsWith(".yml") ? fileName : fileName + ".yml";
     }
 
     /**

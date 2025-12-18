@@ -16,3 +16,4 @@ com.zetaplugins.zetacore.services.localization
 com.zetaplugins.zetacore.services.messages
 com.zetaplugins.zetacore.services.papi
 com.zetaplugins.zetacore.services.updatechecker
+com.zetaplugins.zetacore.util

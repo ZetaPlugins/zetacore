@@ -28,4 +28,21 @@ public @interface Service {
      * Default is ServiceScope.SINGLETON.
      */
     ServiceScope scope() default ServiceScope.SINGLETON;
+
+    /**
+     * The type(s) this service should be registered under in the registry.<br/>
+     * When specified, the service instance can be injected by these types
+     * (typically interfaces or abstract classes) instead of the concrete class.<br/>
+     * The service is always also registered under its own concrete class.<br/>
+     * Default is no additional bindings.
+     *
+     * <pre>
+     * {@literal @}Service(binds = Storage.class)
+     * public class MySQLStorage implements Storage { ... }
+     *
+     * // Now this works:
+     * {@literal @}Inject Storage storage;
+     * </pre>
+     */
+    Class<?>[] binds() default {};
 }

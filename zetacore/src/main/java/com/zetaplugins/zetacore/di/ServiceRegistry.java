@@ -8,7 +8,9 @@ import org.reflections.Reflections;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.*;
+import java.util.stream.Collectors;
 
 /**
  * A registry for managing and injecting service instances.
@@ -68,6 +70,7 @@ public class ServiceRegistry {
         requireServiceAnnotation(instance.getClass());
         injectServices(instance);
         instances.put(instance.getClass(), instance);
+        registerBindings(instance.getClass(), instance);
     }
 
     /**
@@ -109,13 +112,76 @@ public class ServiceRegistry {
             Object existing = instances.get(cls);
             if (existing != null) return (T) existing;
 
-            T obj = createInstance(cls);
+            // If the requested type is an interface or abstract class, try to discover a concrete implementation
+            Class<T> resolvedClass = cls;
+            if (cls.isInterface() || Modifier.isAbstract(cls.getModifiers())) {
+                resolvedClass = discoverImplementation(cls);
+            }
+
+            T obj = createInstance(resolvedClass);
             instances.put(cls, obj);
+            if (resolvedClass != cls) {
+                instances.put(resolvedClass, obj);
+            }
+            registerBindings(resolvedClass, obj);
             injectServices(obj);
             return obj;
         } finally {
             stack.pop();
         }
+    }
+
+    /**
+     * Discovers a concrete {@link Service}-annotated implementation of the given interface or abstract class.
+     * <p>
+     * If exactly one implementation is found, it is returned. If none are found, a {@link ServiceException} is thrown.
+     * If multiple are found, only one annotated with {@code @Service(binds = ...)} targeting this type is selected.
+     * If that still doesn't resolve to a single candidate, a {@link ServiceException} is thrown.
+     *
+     * @param type The interface or abstract class to find an implementation for.
+     * @return The resolved concrete class.
+     * @param <T> The type of the interface or abstract class.
+     */
+    @SuppressWarnings("unchecked")
+    private <T> Class<T> discoverImplementation(Class<T> type) {
+        Reflections reflections = new Reflections(packagePrefix);
+        List<Class<?>> serviceCandidates = reflections.getSubTypesOf(type).stream()
+                .<Class<?>>map(c -> c)
+                .filter(c -> c.isAnnotationPresent(Service.class))
+                .filter(c -> !c.isInterface() && !Modifier.isAbstract(c.getModifiers()))
+                .toList();
+
+        if (serviceCandidates.isEmpty()) {
+            throw new ServiceException("No @Service implementation found for " + type.getName());
+        }
+
+        if (serviceCandidates.size() == 1) {
+            return (Class<T>) serviceCandidates.get(0);
+        }
+
+        // Multiple candidates -> try to narrow down using explicit binds
+        List<Class<?>> boundCandidates = serviceCandidates.stream()
+                .filter(c -> {
+                    Class<?>[] binds = c.getAnnotation(Service.class).binds();
+                    for (Class<?> bind : binds) {
+                        if (bind == type) return true;
+                    }
+                    return false;
+                })
+                .toList();
+
+        if (boundCandidates.size() == 1) {
+            return (Class<T>) boundCandidates.get(0);
+        }
+
+        String candidateNames = serviceCandidates.stream()
+                .map(Class::getName)
+                .reduce((a, b) -> a + ", " + b)
+                .orElse("");
+
+        throw new ServiceException("Multiple @Service implementations found for " + type.getName()
+                + ": [" + candidateNames + "]. Use @Service(binds = " + type.getSimpleName()
+                + ".class) on the intended implementation to resolve the ambiguity.");
     }
 
     /**
@@ -207,10 +273,26 @@ public class ServiceRegistry {
         }
     }
 
-    private void requireServiceAnnotation(Class<?> cls) {
-        if (requireServiceAnnotation && !cls.isAnnotationPresent(Service.class)) {
-            throw new ServiceException("Class " + cls.getName() + " is not annotated with @Service");
+    private void registerBindings(Class<?> cls, Object instance) {
+        if (!cls.isAnnotationPresent(Service.class)) return;
+
+        Class<?>[] binds = cls.getAnnotation(Service.class).binds();
+        for (Class<?> bindType : binds) {
+            if (!bindType.isAssignableFrom(cls)) {
+                throw new ServiceException("Service " + cls.getName()
+                        + " declares binding to " + bindType.getName()
+                        + " but does not implement or extend it.");
+            }
+            instances.put(bindType, instance);
         }
+    }
+
+    private void requireServiceAnnotation(Class<?> cls) {
+        if (!requireServiceAnnotation) return;
+        if (cls.isAnnotationPresent(Service.class)) return;
+        if (cls.isInterface() || Modifier.isAbstract(cls.getModifiers())) return;
+
+        throw new ServiceException("Class " + cls.getName() + " is not annotated with @Service");
     }
 
     record ServiceOptions(

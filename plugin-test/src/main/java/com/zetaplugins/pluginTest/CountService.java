@@ -1,7 +1,6 @@
 package com.zetaplugins.pluginTest;
 
-import com.zetaplugins.zetacore.di.annotation.InjectService;
-import com.zetaplugins.zetacore.di.annotation.InjectPlugin;
+import com.zetaplugins.zetacore.di.annotation.Inject;
 import com.zetaplugins.zetacore.di.annotation.Service;
 import com.zetaplugins.zetacore.di.annotation.PostConstruct;
 import org.bukkit.entity.Player;
@@ -11,13 +10,13 @@ import java.util.Map;
 import java.util.UUID;
 
 @Service
-public class CountService {
+public class CountService implements GenericCountService {
     private final Map<Player, Integer> playerCounts;
 
-    @InjectService
+    @Inject
     private GreetingService greetingService;
 
-    @InjectPlugin
+    @Inject
     private PluginTest plugin;
 
     public CountService() {
@@ -30,6 +29,7 @@ public class CountService {
         System.out.println(greetingService.getGreeting("CountManager"));
     }
 
+    @Override
     public void incrementCounter(UUID playerId) {
         Player player = plugin.getServer().getPlayer(playerId);
         if (player != null) {
@@ -37,6 +37,7 @@ public class CountService {
         }
     }
 
+    @Override
     public int getCounter(UUID playerId) {
         System.out.println(greetingService.getGreeting("CountManager.getCounter"));
         Player player = plugin.getServer().getPlayer(playerId);

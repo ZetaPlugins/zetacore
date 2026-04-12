@@ -19,7 +19,7 @@ import java.util.List;
 public class CountCommand extends TestPluginCommand {
 
     @Inject
-    private CountService countService;
+    private GenericCountService countService;
 
     public CountCommand(PluginTest plugin) {
         super(plugin);

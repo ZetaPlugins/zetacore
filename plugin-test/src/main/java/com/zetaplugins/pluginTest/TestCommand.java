@@ -32,6 +32,6 @@ public class TestCommand extends TestPluginCommand {
 
     @Override
     public List<String> tabComplete(CommandSender sender, Command command, ArgumentList args) {
-        return List.of();
+        return List.of("man");
     }
 }

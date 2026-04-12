@@ -9,7 +9,7 @@ import java.lang.annotation.Target;
 
 /**
  * Annotation to mark a class for automatic command registration.
- * Use the {@link AutoCommandRegistrar} to register commands annotated with this.
+ * Use the {@link AutoCommandRegistrar} to register value annotated with this.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
@@ -20,7 +20,7 @@ public @interface AutoRegisterCommand {
     String command() default "";
 
     /**
-     * The commands to register.
+     * The value to register.
      */
     String[] commands() default {};
 

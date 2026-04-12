@@ -1,7 +1,7 @@
 package com.zetaplugins.zetacore.command.registration;
 
 import com.zetaplugins.zetacore.command.annotation.AutoRegisterCommand;
-import com.zetaplugins.zetacore.command.annotation.AutoRegisterTabCompleter;
+import com.zetaplugins.zetacore.command.annotation.TabCompleterHandler;
 import com.zetaplugins.zetacore.di.ServiceRegistry;
 import org.bukkit.Bukkit;
 import org.bukkit.command.*;
@@ -18,7 +18,7 @@ import java.util.logging.Level;
 /**
  * Manages the registration of commands and tab completers for a plugin.
  * Use the {@link AutoRegisterCommand} annotation to mark command classes for automatic registration.
- * Use the {@link AutoRegisterTabCompleter} annotation to mark tab completer classes for automatic registration.
+ * Use the {@link TabCompleterHandler} annotation to mark tab completer classes for automatic registration.
  */
 public class AutoCommandRegistrar implements CommandRegistrar {
     private final JavaPlugin plugin;
@@ -40,7 +40,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
     /**
      * @param plugin The JavaPlugin instance.
      * @param packagePrefix The package prefix to scan for annotated classes.
-     * @param commandNamespace The namespace to use for the commands. (e.g. "myplugin" for /myplugin:command)
+     * @param commandNamespace The namespace to use for the command. (e.g. "myplugin" for /myplugin:command)
      */
     public AutoCommandRegistrar(JavaPlugin plugin, String packagePrefix, String commandNamespace) {
         this.plugin = plugin;
@@ -72,7 +72,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
     }
 
     /**
-     * Registers all commands annotated with {@link AutoRegisterCommand} and tab completers annotated with {@link AutoRegisterTabCompleter}.
+     * Registers all commands annotated with {@link AutoRegisterCommand} and tab completers annotated with {@link TabCompleterHandler}.
      * @return A list of names of the registered commands.
      */
     public List<String> registerAllCommands() {
@@ -80,7 +80,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
     }
 
     /**
-     * Registers all commands annotated with {@link AutoRegisterCommand} and tab completers annotated with {@link AutoRegisterTabCompleter}.
+     * Registers all commands annotated with {@link AutoRegisterCommand} and tab completers annotated with {@link TabCompleterHandler}.
      * @param commandNameFilter A predicate to filter which command names to register.
      * @return A list of names of the registered commands.
      */
@@ -89,11 +89,11 @@ public class AutoCommandRegistrar implements CommandRegistrar {
         List<String> registeredCommands = new ArrayList<>();
 
         Map<String, TabCompleter> tabCompleters = new HashMap<>();
-        Set<Class<?>> tabCompleterClasses = reflections.getTypesAnnotatedWith(AutoRegisterTabCompleter.class);
+        Set<Class<?>> tabCompleterClasses = reflections.getTypesAnnotatedWith(TabCompleterHandler.class);
 
         for (Class<?> clazz : tabCompleterClasses) {
             if (TabCompleter.class.isAssignableFrom(clazz)) {
-                AutoRegisterTabCompleter annotation = clazz.getAnnotation(AutoRegisterTabCompleter.class);
+                TabCompleterHandler annotation = clazz.getAnnotation(TabCompleterHandler.class);
                 TabCompleter completer = createTabCompleter(clazz);
                 if (completer == null) continue;
 
@@ -101,33 +101,21 @@ public class AutoCommandRegistrar implements CommandRegistrar {
 
                 List<String> names = new ArrayList<>();
                 try {
-                    Method commandsMethod = annotation.annotationType().getMethod("commands");
-                    String[] arr = (String[]) commandsMethod.invoke(annotation);
-                    if (arr != null && arr.length > 0) {
-                        for (String n : arr) {
+                    String[] cmds = annotation.value().length > 0
+                            ? annotation.value()
+                            : annotation.commands();
+                    if (cmds != null && cmds.length > 0) {
+                        for (String n : cmds) {
                             if (n != null && !n.isEmpty() && commandNameFilter.test(n)) names.add(n);
                         }
                     } else {
                         throw new NoSuchMethodException();
                     }
                 } catch (NoSuchMethodException ignored) {
-                    try {
-                        Method commandMethod = annotation.annotationType().getMethod("command");
-                        String n = (String) commandMethod.invoke(annotation);
-                        if (n != null && !n.isEmpty() && commandNameFilter.test(n)) {
-                            names.add(n);
-                        } else {
-                            throw new NoSuchMethodException();
-                        }
-                    } catch (NoSuchMethodException ignored2) {
-                        plugin.getLogger().warning("AutoRegisterTabCompleter annotation on " + clazz.getSimpleName() +
-                                " has no 'commands' or 'command' method");
-                    } catch (Exception e) {
-                        plugin.getLogger().log(Level.WARNING, "Failed to read AutoRegisterTabCompleter annotation on "
-                                + clazz.getSimpleName(), e);
-                    }
+                    plugin.getLogger().warning("TabCompleterHandler annotation on " + clazz.getSimpleName() +
+                            " has no 'value' or 'commands' method");
                 } catch (Exception e) {
-                    plugin.getLogger().log(Level.WARNING, "Failed to read AutoRegisterTabCompleter annotation on "
+                    plugin.getLogger().log(Level.WARNING, "Failed to read TabCompleterHandler annotation on "
                             + clazz.getSimpleName(), e);
                 }
 
@@ -172,7 +160,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
 
     /**
      * Registers a command class for all names declared on the annotation.
-     * Supports both the new `commands()` (String[]) and the old `command()` (String) annotation shapes.
+     * Supports both the new `value()` (String[]) and the old `command()` (String) annotation shapes.
      * @param commandClass The command class to register.
      * @param tabCompleters A map of command names to their corresponding tab completers.
      * @param commandNameFilter A predicate to filter which command names to register.

@@ -1,33 +1,33 @@
 package com.zetaplugins.pluginTest;
 
-import com.zetaplugins.zetacore.di.annotation.InjectManager;
+import com.zetaplugins.zetacore.di.annotation.InjectService;
 import com.zetaplugins.zetacore.di.annotation.InjectPlugin;
-import com.zetaplugins.zetacore.di.annotation.Manager;
-import com.zetaplugins.zetacore.di.annotation.PostManagerConstruct;
+import com.zetaplugins.zetacore.di.annotation.Service;
+import com.zetaplugins.zetacore.di.annotation.PostConstruct;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
-@Manager
-public class CountManager {
+@Service
+public class CountService {
     private final Map<Player, Integer> playerCounts;
 
-    @InjectManager
-    private GreetingManager greetingManager;
+    @InjectService
+    private GreetingService greetingService;
 
     @InjectPlugin
     private PluginTest plugin;
 
-    public CountManager() {
+    public CountService() {
         playerCounts = new HashMap<>();
         System.out.println("CountManager constructor called: " + this.hashCode());
     }
 
-    @PostManagerConstruct
+    @PostConstruct
     private void postConstruct() {
-        System.out.println(greetingManager.getGreeting("CountManager"));
+        System.out.println(greetingService.getGreeting("CountManager"));
     }
 
     public void incrementCounter(UUID playerId) {
@@ -38,7 +38,7 @@ public class CountManager {
     }
 
     public int getCounter(UUID playerId) {
-        System.out.println(greetingManager.getGreeting("CountManager.getCounter"));
+        System.out.println(greetingService.getGreeting("CountManager.getCounter"));
         Player player = plugin.getServer().getPlayer(playerId);
         return playerCounts.getOrDefault(player, 0);
     }

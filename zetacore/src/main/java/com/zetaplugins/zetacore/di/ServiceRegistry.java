@@ -1,9 +1,9 @@
 package com.zetaplugins.zetacore.di;
 
-import com.zetaplugins.zetacore.di.annotation.InjectManager;
+import com.zetaplugins.zetacore.di.annotation.InjectService;
 import com.zetaplugins.zetacore.di.annotation.InjectPlugin;
-import com.zetaplugins.zetacore.di.annotation.Manager;
-import com.zetaplugins.zetacore.di.annotation.PostManagerConstruct;
+import com.zetaplugins.zetacore.di.annotation.Service;
+import com.zetaplugins.zetacore.di.annotation.PostConstruct;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.reflections.Reflections;
 
@@ -12,50 +12,50 @@ import java.lang.reflect.Field;
 import java.util.*;
 
 /**
- * A registry for managing and injecting manager instances.
+ * A registry for managing and injecting service instances.
  */
-public class ManagerRegistry {
+public class ServiceRegistry {
     private final JavaPlugin plugin;
     private final Map<Class<?>, Object> instances = new HashMap<>();
-    private final boolean requireManagerAnnotation;
+    private final boolean requireServiceAnnotation;
     private final String packagePrefix;
     private final ThreadLocal<Deque<Class<?>>> creationStack = ThreadLocal.withInitial(ArrayDeque::new);
 
     /**
-     * Creates a new ManagerRegistry for the given plugin. Doesn't require the {@link Manager} annotation on managed classes.
+     * Creates a new ServiceRegistry for the given plugin. Doesn't require the {@link Service} annotation on managed classes.
      * @param plugin The main plugin instance.
      */
-    public ManagerRegistry(JavaPlugin plugin) {
+    public ServiceRegistry(JavaPlugin plugin) {
         this.plugin = plugin;
         instances.put(plugin.getClass(), plugin);
         instances.put(JavaPlugin.class, plugin);
-        this.requireManagerAnnotation = false;
+        this.requireServiceAnnotation = false;
         this.packagePrefix = plugin.getClass().getPackageName();
     }
 
     /**
-     * Creates a new ManagerRegistry for the given plugin.
+     * Creates a new ServiceRegistry for the given plugin.
      * @param plugin The main plugin instance.
-     * @param requireManagerAnnotation Whether to require the {@link Manager} annotation on managed classes.
+     * @param requireServiceAnnotation Whether to require the {@link Service} annotation on managed classes.
      */
-    public ManagerRegistry(JavaPlugin plugin, boolean requireManagerAnnotation, String packagePrefix) {
+    public ServiceRegistry(JavaPlugin plugin, boolean requireServiceAnnotation, String packagePrefix) {
         this.plugin = plugin;
         instances.put(plugin.getClass(), plugin);
         instances.put(JavaPlugin.class, plugin);
-        this.requireManagerAnnotation = requireManagerAnnotation;
+        this.requireServiceAnnotation = requireServiceAnnotation;
         this.packagePrefix = packagePrefix;
     }
 
     /**
-     * Initializes and registers all eagerly loaded singleton managers found in the specified package.
+     * Initializes and registers all eagerly loaded singleton services found in the specified package.
      */
-    public void initializeEagerManagers() {
+    public void initializeEagerServices() {
         Reflections reflections = new Reflections(packagePrefix);
-        Set<Class<?>> annotatedClasses = reflections.getTypesAnnotatedWith(Manager.class);
+        Set<Class<?>> annotatedClasses = reflections.getTypesAnnotatedWith(Service.class);
 
         for (Class<?> cls : annotatedClasses) {
-            ManagerOptions options = getManagerOptions(cls);
-            if (options.eagerlyLoad() && options.scope() == ManagerScope.SINGLETON) {
+            ServiceOptions options = getServiceOptions(cls);
+            if (options.eagerlyLoad() && options.scope() == ServiceScope.SINGLETON) {
                 getOrCreate(cls);
             }
         }
@@ -66,8 +66,8 @@ public class ManagerRegistry {
      * @param instance The instance to register.
      */
     public void registerInstance(Object instance) {
-        requireManagerAnnotation(instance.getClass());
-        injectManagers(instance);
+        requireServiceAnnotation(instance.getClass());
+        injectServices(instance);
         instances.put(instance.getClass(), instance);
     }
 
@@ -77,8 +77,8 @@ public class ManagerRegistry {
      * @param instance The instance to register.
      */
     public void registerInstance(Class<?> cls, Object instance) {
-        requireManagerAnnotation(cls);
-        injectManagers(instance);
+        requireServiceAnnotation(cls);
+        injectServices(instance);
         instances.put(cls, instance);
     }
 
@@ -90,7 +90,7 @@ public class ManagerRegistry {
      */
     @SuppressWarnings("unchecked")
     public <T> T getOrCreate(Class<T> cls) {
-        requireManagerAnnotation(cls);
+        requireServiceAnnotation(cls);
 
         Deque<Class<?>> stack = creationStack.get();
         if (stack.contains(cls)) {
@@ -98,12 +98,12 @@ public class ManagerRegistry {
         }
         stack.push(cls);
         try {
-            if (cls.isAnnotationPresent(Manager.class)) {
-                ManagerOptions options = getManagerOptions(cls);
-                if (options.scope() == ManagerScope.PROTOTYPE) {
+            if (cls.isAnnotationPresent(Service.class)) {
+                ServiceOptions options = getServiceOptions(cls);
+                if (options.scope() == ServiceScope.PROTOTYPE) {
                     try {
                         T obj = createInstance(cls);
-                        injectManagers(obj);
+                        injectServices(obj);
                         return obj;
                     } catch (Exception e) {
                         throw new RuntimeException("Failed to create prototype instance of " + cls.getName(), e);
@@ -116,7 +116,7 @@ public class ManagerRegistry {
 
             T obj = createInstance(cls);
             instances.put(cls, obj);
-            injectManagers(obj);
+            injectServices(obj);
             return obj;
         } catch (Exception e) {
             throw new RuntimeException("Failed to create instance of " + cls.getName(), e);
@@ -144,7 +144,7 @@ public class ManagerRegistry {
             Constructor<T> noArg = cls.getDeclaredConstructor();
             noArg.setAccessible(true);
             T obj = noArg.newInstance();
-            injectManagers(obj);
+            injectServices(obj);
             return obj;
         } catch (InstantiationException | IllegalAccessException | java.lang.reflect.InvocationTargetException | NoSuchMethodException e) {
             throw new RuntimeException("Failed to create instance of " + cls.getName() + ". The class must have either a no-argument constructor or a constructor that accepts the plugin instance.", e);
@@ -156,14 +156,14 @@ public class ManagerRegistry {
     }
 
     /**
-     * Injects manager instances into the fields of the target object.
-     * @param target The target object to inject managers into.
+     * Injects service instances into the fields of the target object.
+     * @param target The target object to inject services into.
      */
-    public void injectManagers(Object target) {
+    public void injectServices(Object target) {
         Class<?> cls = target.getClass();
         while (cls != null && cls != Object.class) {
             for (Field field : cls.getDeclaredFields()) {
-                injectManagerIntoField(field, target);
+                injectServiceIntoField(field, target);
                 injectPluginIntoField(field, target);
             }
             cls = cls.getSuperclass();
@@ -172,8 +172,8 @@ public class ManagerRegistry {
         callPostConstructMethods(target);
     }
 
-    private void injectManagerIntoField(Field field, Object target) {
-        if (!field.isAnnotationPresent(InjectManager.class)) return;
+    private void injectServiceIntoField(Field field, Object target) {
+        if (!field.isAnnotationPresent(InjectService.class)) return;
 
         Object instance = getOrCreate(field.getType());
         try {
@@ -203,15 +203,15 @@ public class ManagerRegistry {
         Class<?> cls = target.getClass();
         while (cls != null && cls != Object.class) {
             for (var method : cls.getDeclaredMethods()) {
-                if (method.isAnnotationPresent(PostManagerConstruct.class)) {
+                if (method.isAnnotationPresent(PostConstruct.class)) {
                     if (method.getParameterCount() != 0) {
-                        throw new RuntimeException("@PostManagerConstruct method " + method.getName() + " must have no parameters");
+                        throw new RuntimeException("@PostConstruct method " + method.getName() + " must have no parameters");
                     }
                     try {
                         method.setAccessible(true);
                         method.invoke(target);
                     } catch (Exception e) {
-                        throw new RuntimeException("Failed to execute @PostManagerConstruct method " + method.getName(), e);
+                        throw new RuntimeException("Failed to execute @PostConstruct method " + method.getName(), e);
                     }
                 }
             }
@@ -219,30 +219,58 @@ public class ManagerRegistry {
         }
     }
 
-    private void requireManagerAnnotation(Class<?> cls) {
-        if (requireManagerAnnotation && !cls.isAnnotationPresent(Manager.class)) {
-            throw new RuntimeException("Class " + cls.getName() + " is not annotated with @Manager");
+    private void requireServiceAnnotation(Class<?> cls) {
+        if (requireServiceAnnotation && !cls.isAnnotationPresent(Service.class)) {
+            throw new RuntimeException("Class " + cls.getName() + " is not annotated with @Service");
         }
     }
 
-    record ManagerOptions(
+    record ServiceOptions(
             boolean eagerlyLoad,
-            ManagerScope scope
+            ServiceScope scope
     ) {}
 
     /**
-     * Get the ManagerOptions for the given class.
-     * @param cls The class to get the ManagerOptions for.
-     * @return The ManagerOptions for the class.
+     * Get the ServiceOptions for the given class.
+     * @param cls The class to get the ServiceOptions for.
+     * @return The ServiceOptions for the class.
      */
-    private ManagerOptions getManagerOptions(Class<?> cls) {
-        if (cls.isAnnotationPresent(Manager.class)) {
-            Manager managerAnnotation = cls.getAnnotation(Manager.class);
-            return new ManagerOptions(
-                    managerAnnotation.eagerlyLoad(),
-                    managerAnnotation.scope()
+    private ServiceOptions getServiceOptions(Class<?> cls) {
+        if (cls.isAnnotationPresent(Service.class)) {
+            Service serviceAnnotation = cls.getAnnotation(Service.class);
+            return new ServiceOptions(
+                    serviceAnnotation.eagerlyLoad(),
+                    serviceAnnotation.scope()
             );
         }
-        return new ManagerOptions(false, ManagerScope.SINGLETON);
+        return new ServiceOptions(false, ServiceScope.SINGLETON);
+    }
+
+    public static class Builder {
+        private JavaPlugin plugin;
+        private boolean requireManagerAnnotation = false;
+        private String packagePrefix;
+
+        public Builder setPlugin(JavaPlugin plugin) {
+            this.plugin = plugin;
+            if (this.packagePrefix == null) this.packagePrefix = plugin.getClass().getPackageName();
+            return this;
+        }
+
+        public Builder setRequireManagerAnnotation(boolean requireManagerAnnotation) {
+            this.requireManagerAnnotation = requireManagerAnnotation;
+            return this;
+        }
+
+        public Builder setPackagePrefix(String packagePrefix) {
+            this.packagePrefix = packagePrefix;
+            return this;
+        }
+
+        public ServiceRegistry build() {
+            if (plugin == null) throw new IllegalStateException("Plugin must be set before building ManagerRegistry.");
+            if (packagePrefix == null) throw new IllegalStateException("Package prefix must be set before building ManagerRegistry.");
+            return new ServiceRegistry(plugin, requireManagerAnnotation, packagePrefix);
+        }
     }
 }

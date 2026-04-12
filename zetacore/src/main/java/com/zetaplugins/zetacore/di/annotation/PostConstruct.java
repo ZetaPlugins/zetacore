@@ -6,9 +6,9 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Indicates that a field should have a manager instance injected into it.
+ * Marks a method to be executed after construction and service injection.
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target(ElementType.FIELD)
-public @interface InjectManager {
+@Target(ElementType.METHOD)
+public @interface PostConstruct {
 }

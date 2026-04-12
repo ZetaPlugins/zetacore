@@ -1,11 +1,11 @@
 package com.zetaplugins.pluginTest;
 
-import com.zetaplugins.zetacore.di.annotation.Manager;
+import com.zetaplugins.zetacore.di.annotation.Service;
 
-@Manager
-public class GreetingManager {
+@Service
+public class GreetingService {
 
-    public GreetingManager() {
+    public GreetingService() {
         System.out.println("GreetingManager constructor called: " + this.hashCode());
     }
 

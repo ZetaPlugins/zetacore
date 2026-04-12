@@ -1,6 +1,6 @@
 package com.zetaplugins.zetacore.messaging;
 
-import com.zetaplugins.zetacore.di.annotation.Manager;
+import com.zetaplugins.zetacore.di.annotation.Service;
 import com.zetaplugins.zetacore.messaging.localization.LocalizationService;
 import net.kyori.adventure.text.minimessage.MiniMessage;
 import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
@@ -8,7 +8,7 @@ import org.bukkit.command.CommandSender;
 
 import java.util.List;
 
-@Manager
+@Service
 public class LegacyMessenger extends BaseMessageService implements Messenger {
     private final MiniMessage mm = MiniMessage.miniMessage();
     private final LegacyComponentSerializer legacySerializer = LegacyComponentSerializer.legacySection();

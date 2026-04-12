@@ -1,6 +1,6 @@
 package com.zetaplugins.zetacore.messaging;
 
-import com.zetaplugins.zetacore.di.annotation.Manager;
+import com.zetaplugins.zetacore.di.annotation.Service;
 import com.zetaplugins.zetacore.messaging.localization.LocalizationService;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.minimessage.MiniMessage;
@@ -8,7 +8,7 @@ import org.bukkit.command.CommandSender;
 
 import java.util.List;
 
-@Manager
+@Service
 public class AdventureMessenger extends BaseMessageService implements Messenger {
     private final MiniMessage mm = MiniMessage.miniMessage();
 

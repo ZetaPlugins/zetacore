@@ -1,6 +1,6 @@
 package com.zetaplugins.zetacore.messaging.localization;
 
-import com.zetaplugins.zetacore.di.annotation.Manager;
+import com.zetaplugins.zetacore.di.annotation.Service;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -12,7 +12,7 @@ import java.util.List;
  * Service for handling localization and language files.
  * This service loads the language file based on the configuration and provides methods to retrieve localized strings.
  */
-@Manager
+@Service
 public final class BukkitLocalizationService implements LocalizationService {
     private final JavaPlugin plugin;
     private final List<String> possibleLangs;

@@ -1,7 +1,7 @@
 package com.zetaplugins.zetacore.event.registration;
 
 import com.zetaplugins.zetacore.event.annotation.AutoRegisterListener;
-import com.zetaplugins.zetacore.di.ManagerRegistry;
+import com.zetaplugins.zetacore.di.ServiceRegistry;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.reflections.Reflections;
@@ -19,7 +19,7 @@ import java.util.logging.Level;
 public class AutoEventRegistrar implements EventRegistrar {
     private final JavaPlugin plugin;
     private final String packagePrefix;
-    private final ManagerRegistry managerRegistry;
+    private final ServiceRegistry serviceRegistry;
 
     /**
      * @param plugin The JavaPlugin instance.
@@ -28,18 +28,18 @@ public class AutoEventRegistrar implements EventRegistrar {
     public AutoEventRegistrar(JavaPlugin plugin, String packagePrefix) {
         this.plugin = plugin;
         this.packagePrefix = packagePrefix;
-        this.managerRegistry = null;
+        this.serviceRegistry = null;
     }
 
     /**
      * @param plugin The JavaPlugin instance.
      * @param packagePrefix The package prefix to scan for annotated classes.
-     * @param managerRegistry The ManagerRegistry for dependency injection.
+     * @param serviceRegistry The ServiceRegistry for dependency injection.
      */
-    public AutoEventRegistrar(JavaPlugin plugin, String packagePrefix, ManagerRegistry managerRegistry) {
+    public AutoEventRegistrar(JavaPlugin plugin, String packagePrefix, ServiceRegistry serviceRegistry) {
         this.plugin = plugin;
         this.packagePrefix = packagePrefix;
-        this.managerRegistry = managerRegistry;
+        this.serviceRegistry = serviceRegistry;
     }
 
     /**
@@ -85,7 +85,7 @@ public class AutoEventRegistrar implements EventRegistrar {
                 }
             }
 
-            if (managerRegistry != null) managerRegistry.injectManagers(listener);
+            if (serviceRegistry != null) serviceRegistry.injectServices(listener);
 
             plugin.getServer().getPluginManager().registerEvents(listener, plugin);
 
@@ -105,7 +105,7 @@ public class AutoEventRegistrar implements EventRegistrar {
     public void registerListener(Listener... listener) {
         for (Listener l : listener) {
             if (l == null) continue;
-            if (managerRegistry != null) managerRegistry.injectManagers(l);
+            if (serviceRegistry != null) serviceRegistry.injectServices(l);
             plugin.getServer().getPluginManager().registerEvents(l, plugin);
         }
     }
@@ -116,7 +116,7 @@ public class AutoEventRegistrar implements EventRegistrar {
     public static class Builder {
         private JavaPlugin plugin;
         private String packagePrefix;
-        private ManagerRegistry managerRegistry;
+        private ServiceRegistry serviceRegistry;
 
         public Builder setPlugin(JavaPlugin plugin) {
             this.plugin = plugin;
@@ -128,8 +128,8 @@ public class AutoEventRegistrar implements EventRegistrar {
             return this;
         }
 
-        public Builder setManagerRegistry(ManagerRegistry managerRegistry) {
-            this.managerRegistry = managerRegistry;
+        public Builder setServiceRegistry(ServiceRegistry serviceRegistry) {
+            this.serviceRegistry = serviceRegistry;
             return this;
         }
 
@@ -140,7 +140,7 @@ public class AutoEventRegistrar implements EventRegistrar {
         public AutoEventRegistrar build() {
             if (plugin == null) throw new IllegalStateException("Plugin must be set");
             if (packagePrefix == null) throw new IllegalStateException("Package prefix must be set");
-            return new AutoEventRegistrar(plugin, packagePrefix, managerRegistry);
+            return new AutoEventRegistrar(plugin, packagePrefix, serviceRegistry);
         }
     }
 }

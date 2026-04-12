@@ -3,8 +3,8 @@ package com.zetaplugins.pluginTest;
 import com.zetaplugins.zetacore.ZetaCorePlugin;
 import com.zetaplugins.zetacore.command.registration.AutoCommandRegistrar;
 import com.zetaplugins.zetacore.debug.command.DebugCommandHandler;
+import com.zetaplugins.zetacore.di.ServiceRegistry;
 import com.zetaplugins.zetacore.event.registration.AutoEventRegistrar;
-import com.zetaplugins.zetacore.event.registration.ManagerRegistryBuilder;
 import com.zetaplugins.zetacore.integration.bstats.Metrics;
 import com.zetaplugins.zetacore.integration.papi.PapiExpansionService;
 import com.zetaplugins.zetacore.integration.updatechecker.HangarUpdateChecker;
@@ -35,20 +35,20 @@ public final class PluginTest extends ZetaCorePlugin {
         messenger = new AdventureMessenger(localizationService);
 
         // Dependency Injection and Manager Registry setup
-        var managerRegistry = new ManagerRegistryBuilder()
+        var serviceRegistry = new ServiceRegistry.Builder()
                 .setPlugin(this)
                 .setPackagePrefix(PACKAGE_PREFIX)
                 .setRequireManagerAnnotation(true)
                 .build();
-        managerRegistry.initializeEagerManagers();
+        serviceRegistry.initializeEagerServices();
         System.out.println("Initialized Managers!");
 
         // Event and Command Registration
-        new AutoEventRegistrar(this, PACKAGE_PREFIX, managerRegistry).registerAllListeners();
+        new AutoEventRegistrar(this, PACKAGE_PREFIX, serviceRegistry).registerAllListeners();
         var cmdRegistrar = new AutoCommandRegistrar.Builder()
                 .setPlugin(this)
                 .setPackagePrefix(PACKAGE_PREFIX)
-                .setManagerRegistry(managerRegistry)
+                .setServiceRegistry(serviceRegistry)
                 .build();
         var commands = cmdRegistrar.registerAllCommands();
         cmdRegistrar.registerCommand("count", new CountCommand(this));
@@ -70,7 +70,7 @@ public final class PluginTest extends ZetaCorePlugin {
         boolean papiSuccess = new PapiExpansionService(this)
                 .setAuthor("ZetaPlugins")
                 .addPlaceholder("example", (player, args) -> "ExampleValue for " + player.getName())
-                .addAnnotatedPlaceholders(managerRegistry.getOrCreate(CountPlaceholders.class))
+                .addAnnotatedPlaceholders(serviceRegistry.getOrCreate(CountPlaceholders.class))
                 .register();
         getLogger().info("PAPI expansion registration successful: " + papiSuccess);
 

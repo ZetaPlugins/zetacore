@@ -1,10 +1,10 @@
 package com.zetaplugins.zetacore.messaging.localization;
 
-import com.zetaplugins.zetacore.di.annotation.Manager;
+import com.zetaplugins.zetacore.di.annotation.Service;
 
 import java.util.List;
 
-@Manager
+@Service
 public interface LocalizationService {
     /**
      * Get a string from the language file

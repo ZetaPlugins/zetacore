@@ -1,6 +1,6 @@
 package com.zetaplugins.zetacore.integration.updatechecker;
 
-import com.zetaplugins.zetacore.di.annotation.Manager;
+import com.zetaplugins.zetacore.di.annotation.Service;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.util.logging.Logger;
@@ -10,7 +10,7 @@ import java.util.logging.Logger;
  * Subclasses should implement the checkForUpdates method to define
  * how updates are checked.
  */
-@Manager
+@Service
 public abstract class UpdateChecker {
     private final JavaPlugin plugin;
     private final Logger logger;

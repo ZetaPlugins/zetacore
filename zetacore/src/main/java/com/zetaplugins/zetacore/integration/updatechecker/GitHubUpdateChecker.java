@@ -1,6 +1,6 @@
 package com.zetaplugins.zetacore.integration.updatechecker;
 
-import com.zetaplugins.zetacore.di.annotation.Manager;
+import com.zetaplugins.zetacore.di.annotation.Service;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -14,7 +14,7 @@ import java.net.URL;
 /**
  * Checks for updates of a plugin by querying the GitHub Releases API.
  */
-@Manager
+@Service
 public class GitHubUpdateChecker extends UpdateChecker {
     private final String repoOwner;
     private final String repoName;

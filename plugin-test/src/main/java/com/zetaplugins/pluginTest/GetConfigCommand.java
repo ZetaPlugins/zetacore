@@ -5,7 +5,7 @@ import com.zetaplugins.zetacore.command.ArgumentList;
 import com.zetaplugins.zetacore.command.annotation.AutoRegisterCommand;
 import com.zetaplugins.zetacore.command.exception.CommandException;
 import com.zetaplugins.zetacore.config.ConfigService;
-import com.zetaplugins.zetacore.di.annotation.InjectManager;
+import com.zetaplugins.zetacore.di.annotation.InjectService;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 
@@ -18,7 +18,7 @@ import java.util.List;
 )
 public class GetConfigCommand extends TestPluginCommand {
 
-    @InjectManager
+    @InjectService
     private ConfigService configService;
 
     public GetConfigCommand(PluginTest plugin) {

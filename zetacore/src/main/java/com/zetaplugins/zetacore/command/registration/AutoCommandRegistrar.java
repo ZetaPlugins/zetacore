@@ -301,22 +301,22 @@ public class AutoCommandRegistrar implements CommandRegistrar {
         private String commandNamespace;
         private ServiceRegistry serviceRegistry;
 
-        public Builder setPlugin(JavaPlugin plugin) {
+        public Builder withPlugin(JavaPlugin plugin) {
             this.plugin = plugin;
             return this;
         }
 
-        public Builder setPackagePrefix(String packagePrefix) {
+        public Builder withPackagePrefix(String packagePrefix) {
             this.packagePrefix = packagePrefix;
             return this;
         }
 
-        public Builder setCommandNamespace(String commandNamespace) {
+        public Builder withCommandNamespace(String commandNamespace) {
             this.commandNamespace = commandNamespace;
             return this;
         }
 
-        public Builder setServiceRegistry(ServiceRegistry serviceRegistry) {
+        public Builder withServiceRegistry(ServiceRegistry serviceRegistry) {
             this.serviceRegistry = serviceRegistry;
             return this;
         }

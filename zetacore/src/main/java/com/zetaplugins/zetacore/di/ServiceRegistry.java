@@ -242,18 +242,18 @@ public class ServiceRegistry {
         private boolean requireServiceAnnotation = false;
         private String packagePrefix;
 
-        public Builder setPlugin(JavaPlugin plugin) {
+        public Builder withPlugin(JavaPlugin plugin) {
             this.plugin = plugin;
             if (this.packagePrefix == null) this.packagePrefix = plugin.getClass().getPackageName();
             return this;
         }
 
-        public Builder setRequireServiceAnnotation(boolean requireServiceAnnotation) {
+        public Builder withRequireServiceAnnotation(boolean requireServiceAnnotation) {
             this.requireServiceAnnotation = requireServiceAnnotation;
             return this;
         }
 
-        public Builder setPackagePrefix(String packagePrefix) {
+        public Builder withPackagePrefix(String packagePrefix) {
             this.packagePrefix = packagePrefix;
             return this;
         }

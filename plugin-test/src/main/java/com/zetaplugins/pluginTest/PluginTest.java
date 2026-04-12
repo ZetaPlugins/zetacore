@@ -36,9 +36,9 @@ public final class PluginTest extends ZetaCorePlugin {
 
         // Dependency Injection and Manager Registry setup
         var serviceRegistry = new ServiceRegistry.Builder()
-                .setPlugin(this)
-                .setPackagePrefix(PACKAGE_PREFIX)
-                .setRequireServiceAnnotation(true)
+                .withPlugin(this)
+                .withPackagePrefix(PACKAGE_PREFIX)
+                .withRequireServiceAnnotation(true)
                 .build();
         serviceRegistry.initializeEagerServices();
         System.out.println("Initialized Managers!");
@@ -46,9 +46,9 @@ public final class PluginTest extends ZetaCorePlugin {
         // Event and Command Registration
         new AutoEventRegistrar(this, PACKAGE_PREFIX, serviceRegistry).registerAllListeners();
         var cmdRegistrar = new AutoCommandRegistrar.Builder()
-                .setPlugin(this)
-                .setPackagePrefix(PACKAGE_PREFIX)
-                .setServiceRegistry(serviceRegistry)
+                .withPlugin(this)
+                .withPackagePrefix(PACKAGE_PREFIX)
+                .withServiceRegistry(serviceRegistry)
                 .build();
         var commands = cmdRegistrar.registerAllCommands();
         cmdRegistrar.registerCommand("count", new CountCommand(this));

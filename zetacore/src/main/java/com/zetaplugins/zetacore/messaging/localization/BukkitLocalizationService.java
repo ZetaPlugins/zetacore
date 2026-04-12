@@ -110,27 +110,27 @@ public final class BukkitLocalizationService implements LocalizationService {
         private String langFolder = "lang/";
         private String langConfigOption = "lang";
 
-        public Builder setPlugin(JavaPlugin plugin) {
+        public Builder withPlugin(JavaPlugin plugin) {
             this.plugin = plugin;
             return this;
         }
 
-        public Builder setPossibleLangs(List<String> possibleLangs) {
+        public Builder withPossibleLangs(List<String> possibleLangs) {
             this.possibleLangs = possibleLangs;
             return this;
         }
 
-        public Builder setFallbackLang(String fallbackLang) {
+        public Builder withFallbackLang(String fallbackLang) {
             this.fallbackLang = fallbackLang;
             return this;
         }
 
-        public Builder setLangFolder(String langFolder) {
+        public Builder withLangFolder(String langFolder) {
             this.langFolder = langFolder;
             return this;
         }
 
-        public Builder setLangConfigOption(String langConfigOption) {
+        public Builder withLangConfigOption(String langConfigOption) {
             this.langConfigOption = langConfigOption;
             return this;
         }

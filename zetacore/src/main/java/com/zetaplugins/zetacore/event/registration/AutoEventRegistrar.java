@@ -118,17 +118,17 @@ public class AutoEventRegistrar implements EventRegistrar {
         private String packagePrefix;
         private ServiceRegistry serviceRegistry;
 
-        public Builder setPlugin(JavaPlugin plugin) {
+        public Builder withPlugin(JavaPlugin plugin) {
             this.plugin = plugin;
             return this;
         }
 
-        public Builder setPackagePrefix(String packagePrefix) {
+        public Builder withPackagePrefix(String packagePrefix) {
             this.packagePrefix = packagePrefix;
             return this;
         }
 
-        public Builder setServiceRegistry(ServiceRegistry serviceRegistry) {
+        public Builder withServiceRegistry(ServiceRegistry serviceRegistry) {
             this.serviceRegistry = serviceRegistry;
             return this;
         }

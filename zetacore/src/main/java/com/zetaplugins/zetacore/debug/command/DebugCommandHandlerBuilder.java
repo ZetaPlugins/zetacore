@@ -16,38 +16,38 @@ public final class DebugCommandHandlerBuilder {
     private Map<String, String> configs;
     private Messenger messenger;
 
-    public DebugCommandHandlerBuilder setPlugin(JavaPlugin plugin) {
+    public DebugCommandHandlerBuilder withPlugin(JavaPlugin plugin) {
         if (plugin instanceof ZetaCorePlugin) this.pluginFile = ((ZetaCorePlugin) plugin).getPluginFile();
         this.plugin = plugin;
         return this;
     }
 
-    public DebugCommandHandlerBuilder setPluginFile(File pluginFile) {
+    public DebugCommandHandlerBuilder withPluginFile(File pluginFile) {
         this.pluginFile = pluginFile;
         return this;
     }
 
-    public DebugCommandHandlerBuilder setPermission(String permission) {
+    public DebugCommandHandlerBuilder withPermission(String permission) {
         this.permission = permission;
         return this;
     }
 
-    public DebugCommandHandlerBuilder setMessages(DebugCommandMessages messages) {
+    public DebugCommandHandlerBuilder withMessages(DebugCommandMessages messages) {
         this.messages = messages;
         return this;
     }
 
-    public DebugCommandHandlerBuilder setModrinthId(String modrinthId) {
+    public DebugCommandHandlerBuilder withModrinthId(String modrinthId) {
         this.modrinthId = modrinthId;
         return this;
     }
 
-    public DebugCommandHandlerBuilder setConfigs(Map<String, String> configs) {
+    public DebugCommandHandlerBuilder withConfigs(Map<String, String> configs) {
         this.configs = configs;
         return this;
     }
 
-    public DebugCommandHandlerBuilder setMessenger(com.zetaplugins.zetacore.messaging.Messenger messenger) {
+    public DebugCommandHandlerBuilder withMessenger(Messenger messenger) {
         this.messenger = messenger;
         return this;
     }

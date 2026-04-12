@@ -4,7 +4,7 @@ import com.zetaplugins.zetacore.ZetaCorePlugin;
 import com.zetaplugins.zetacore.command.registration.AutoCommandRegistrar;
 import com.zetaplugins.zetacore.debug.command.DebugCommandHandler;
 import com.zetaplugins.zetacore.di.ServiceRegistry;
-import com.zetaplugins.zetacore.event.registration.AutoEventRegistrar;
+import com.zetaplugins.zetacore.event.registration.AutoEventListenerRegistrar;
 import com.zetaplugins.zetacore.integration.bstats.Metrics;
 import com.zetaplugins.zetacore.integration.papi.PapiExpansionService;
 import com.zetaplugins.zetacore.integration.updatechecker.HangarUpdateChecker;
@@ -44,7 +44,7 @@ public final class PluginTest extends ZetaCorePlugin {
         System.out.println("Initialized Managers!");
 
         // Event and Command Registration
-        new AutoEventRegistrar(this, PACKAGE_PREFIX, serviceRegistry).registerAllListeners();
+        new AutoEventListenerRegistrar(this, PACKAGE_PREFIX, serviceRegistry).registerAllListeners();
         var cmdRegistrar = new AutoCommandRegistrar.Builder()
                 .withPlugin(this)
                 .withPackagePrefix(PACKAGE_PREFIX)

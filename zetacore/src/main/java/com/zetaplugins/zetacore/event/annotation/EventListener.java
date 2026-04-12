@@ -1,6 +1,6 @@
 package com.zetaplugins.zetacore.event.annotation;
 
-import com.zetaplugins.zetacore.event.registration.AutoEventRegistrar;
+import com.zetaplugins.zetacore.event.registration.AutoEventListenerRegistrar;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -9,10 +9,9 @@ import java.lang.annotation.Target;
 
 /**
  * Annotation to mark event listener classes for automatic registration.
- * Classes annotated with this will be registered by the {@link AutoEventRegistrar}.
+ * Classes annotated with this will be registered by the {@link AutoEventListenerRegistrar}.
  */
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface AutoRegisterListener {
-    String name() default "";
+public @interface EventListener {
 }

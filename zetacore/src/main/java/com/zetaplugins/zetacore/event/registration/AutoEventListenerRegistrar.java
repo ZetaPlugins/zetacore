@@ -1,6 +1,6 @@
 package com.zetaplugins.zetacore.event.registration;
 
-import com.zetaplugins.zetacore.event.annotation.AutoRegisterListener;
+import com.zetaplugins.zetacore.event.annotation.EventListener;
 import com.zetaplugins.zetacore.di.ServiceRegistry;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -14,9 +14,9 @@ import java.util.logging.Level;
 
 /**
  * Manages the registration of event listeners for a plugin.
- * Use the {@link AutoRegisterListener} annotation to mark listener classes for automatic registration.
+ * Use the {@link EventListener} annotation to mark listener classes for automatic registration.
  */
-public class AutoEventRegistrar implements EventRegistrar {
+public class AutoEventListenerRegistrar implements EventListenerRegistrar {
     private final JavaPlugin plugin;
     private final String packagePrefix;
     private final ServiceRegistry serviceRegistry;
@@ -25,7 +25,7 @@ public class AutoEventRegistrar implements EventRegistrar {
      * @param plugin The JavaPlugin instance.
      * @param packagePrefix The package prefix to scan for annotated classes.
      */
-    public AutoEventRegistrar(JavaPlugin plugin, String packagePrefix) {
+    public AutoEventListenerRegistrar(JavaPlugin plugin, String packagePrefix) {
         this.plugin = plugin;
         this.packagePrefix = packagePrefix;
         this.serviceRegistry = null;
@@ -36,20 +36,20 @@ public class AutoEventRegistrar implements EventRegistrar {
      * @param packagePrefix The package prefix to scan for annotated classes.
      * @param serviceRegistry The ServiceRegistry for dependency injection.
      */
-    public AutoEventRegistrar(JavaPlugin plugin, String packagePrefix, ServiceRegistry serviceRegistry) {
+    public AutoEventListenerRegistrar(JavaPlugin plugin, String packagePrefix, ServiceRegistry serviceRegistry) {
         this.plugin = plugin;
         this.packagePrefix = packagePrefix;
         this.serviceRegistry = serviceRegistry;
     }
 
     /**
-     * Registers all listener classes annotated with {@link AutoRegisterListener}.
+     * Registers all listener classes annotated with {@link EventListener}.
      * @return A list of names of the registered listeners.
      */
     @Override
     public List<String> registerAllListeners() {
         Reflections reflections = new Reflections(packagePrefix);
-        Set<Class<?>> annotatedClasses = reflections.getTypesAnnotatedWith(AutoRegisterListener.class);
+        Set<Class<?>> annotatedClasses = reflections.getTypesAnnotatedWith(EventListener.class);
         List<String> registeredListeners = new ArrayList<>();
 
         for (Class<?> clazz : annotatedClasses) {
@@ -89,8 +89,7 @@ public class AutoEventRegistrar implements EventRegistrar {
 
             plugin.getServer().getPluginManager().registerEvents(listener, plugin);
 
-            AutoRegisterListener annotation = listenerClass.getAnnotation(AutoRegisterListener.class);
-            return annotation.name().isEmpty() ? listenerClass.getSimpleName() : annotation.name();
+            return listenerClass.getSimpleName();
         } catch (Exception e) {
             plugin.getLogger().log(Level.SEVERE, "Failed to register listener: " + listenerClass.getSimpleName(), e);
             return null;
@@ -111,7 +110,7 @@ public class AutoEventRegistrar implements EventRegistrar {
     }
 
     /**
-     * Builder class for AutoEventRegistrar.
+     * Builder class for AutoEventListenerRegistrar.
      */
     public static class Builder {
         private JavaPlugin plugin;
@@ -134,13 +133,13 @@ public class AutoEventRegistrar implements EventRegistrar {
         }
 
         /**
-         * Builds the AutoEventRegistrar instance.
-         * @return The constructed AutoEventRegistrar.
+         * Builds the AutoEventListenerRegistrar instance.
+         * @return The constructed AutoEventListenerRegistrar.
          */
-        public AutoEventRegistrar build() {
+        public AutoEventListenerRegistrar build() {
             if (plugin == null) throw new IllegalStateException("Plugin must be set");
             if (packagePrefix == null) throw new IllegalStateException("Package prefix must be set");
-            return new AutoEventRegistrar(plugin, packagePrefix, serviceRegistry);
+            return new AutoEventListenerRegistrar(plugin, packagePrefix, serviceRegistry);
         }
     }
 }

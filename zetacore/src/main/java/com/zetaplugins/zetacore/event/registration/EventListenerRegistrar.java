@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * Service for registering event listeners.
  */
-public interface EventRegistrar {
+public interface EventListenerRegistrar {
     /**
      * Registers all event listeners.
      * @return A list of names of the registered listeners.

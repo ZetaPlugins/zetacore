@@ -1,11 +1,11 @@
 package com.zetaplugins.pluginTest;
 
 import com.zetaplugins.pluginTest.config.MyConfig;
-import com.zetaplugins.zetacore.annotations.AutoRegisterCommand;
-import com.zetaplugins.zetacore.annotations.InjectManager;
-import com.zetaplugins.zetacore.commands.ArgumentList;
-import com.zetaplugins.zetacore.commands.exceptions.CommandException;
-import com.zetaplugins.zetacore.services.config.ConfigService;
+import com.zetaplugins.zetacore.command.ArgumentList;
+import com.zetaplugins.zetacore.command.annotation.AutoRegisterCommand;
+import com.zetaplugins.zetacore.command.exception.CommandException;
+import com.zetaplugins.zetacore.config.ConfigService;
+import com.zetaplugins.zetacore.di.annotation.InjectManager;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 

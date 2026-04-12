@@ -1,6 +1,6 @@
 package com.zetaplugins.pluginTest;
 
-import com.zetaplugins.zetacore.annotations.AutoRegisterTabCompleter;
+import com.zetaplugins.zetacore.command.annotation.AutoRegisterTabCompleter;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.command.TabCompleter;

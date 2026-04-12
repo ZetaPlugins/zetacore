@@ -1,7 +1,7 @@
 package com.zetaplugins.pluginTest;
 
-import com.zetaplugins.zetacore.commands.PluginCommand;
-import com.zetaplugins.zetacore.commands.exceptions.CommandSenderMustBePlayerException;
+import com.zetaplugins.zetacore.command.PluginCommand;
+import com.zetaplugins.zetacore.command.exception.CommandSenderMustBePlayerException;
 
 public abstract class TestPluginCommand extends PluginCommand<PluginTest> {
 

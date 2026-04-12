@@ -1,7 +1,7 @@
 package com.zetaplugins.pluginTest;
 
-import com.zetaplugins.zetacore.annotations.AutoRegisterListener;
-import com.zetaplugins.zetacore.annotations.InjectManager;
+import com.zetaplugins.zetacore.di.annotation.InjectManager;
+import com.zetaplugins.zetacore.event.annotation.AutoRegisterListener;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerMoveEvent;

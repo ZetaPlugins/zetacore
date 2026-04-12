@@ -1,6 +1,6 @@
 package com.zetaplugins.zetacore;
 
-import com.zetaplugins.zetacore.services.bStats.Metrics;
+import com.zetaplugins.zetacore.integration.bstats.Metrics;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;

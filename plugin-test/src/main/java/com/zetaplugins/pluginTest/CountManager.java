@@ -1,10 +1,9 @@
 package com.zetaplugins.pluginTest;
 
-import com.zetaplugins.zetacore.annotations.InjectManager;
-import com.zetaplugins.zetacore.annotations.InjectPlugin;
-import com.zetaplugins.zetacore.annotations.Manager;
-import com.zetaplugins.zetacore.annotations.PostManagerConstruct;
-import com.zetaplugins.zetacore.services.di.ManagerScope;
+import com.zetaplugins.zetacore.di.annotation.InjectManager;
+import com.zetaplugins.zetacore.di.annotation.InjectPlugin;
+import com.zetaplugins.zetacore.di.annotation.Manager;
+import com.zetaplugins.zetacore.di.annotation.PostManagerConstruct;
 import org.bukkit.entity.Player;
 
 import java.util.HashMap;

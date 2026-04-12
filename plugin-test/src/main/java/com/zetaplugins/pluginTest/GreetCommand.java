@@ -1,9 +1,9 @@
 package com.zetaplugins.pluginTest;
 
-import com.zetaplugins.zetacore.annotations.AutoRegisterCommand;
-import com.zetaplugins.zetacore.commands.ArgumentList;
-import com.zetaplugins.zetacore.commands.PluginCommand;
-import com.zetaplugins.zetacore.commands.exceptions.CommandException;
+import com.zetaplugins.zetacore.command.ArgumentList;
+import com.zetaplugins.zetacore.command.PluginCommand;
+import com.zetaplugins.zetacore.command.annotation.AutoRegisterCommand;
+import com.zetaplugins.zetacore.command.exception.CommandException;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;

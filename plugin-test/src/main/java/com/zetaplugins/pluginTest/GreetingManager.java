@@ -1,7 +1,6 @@
 package com.zetaplugins.pluginTest;
 
-import com.zetaplugins.zetacore.annotations.InjectManager;
-import com.zetaplugins.zetacore.annotations.Manager;
+import com.zetaplugins.zetacore.di.annotation.Manager;
 
 @Manager
 public class GreetingManager {

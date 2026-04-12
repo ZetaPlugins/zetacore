@@ -1,9 +1,9 @@
 package com.zetaplugins.pluginTest;
 
-import com.zetaplugins.zetacore.annotations.InjectManager;
-import com.zetaplugins.zetacore.annotations.Manager;
-import com.zetaplugins.zetacore.annotations.Papi;
-import com.zetaplugins.zetacore.annotations.PapiParam;
+import com.zetaplugins.zetacore.di.annotation.InjectManager;
+import com.zetaplugins.zetacore.di.annotation.Manager;
+import com.zetaplugins.zetacore.integration.papi.annotation.Papi;
+import com.zetaplugins.zetacore.integration.papi.annotation.PapiParam;
 import org.bukkit.entity.Player;
 
 @Manager

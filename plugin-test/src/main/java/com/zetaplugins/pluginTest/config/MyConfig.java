@@ -1,6 +1,6 @@
 package com.zetaplugins.pluginTest.config;
 
-import com.zetaplugins.zetacore.annotations.PluginConfig;
+import com.zetaplugins.zetacore.config.annotation.PluginConfig;
 
 import java.util.List;
 

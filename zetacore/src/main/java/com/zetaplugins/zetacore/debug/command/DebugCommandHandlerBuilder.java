@@ -1,7 +1,7 @@
 package com.zetaplugins.zetacore.debug.command;
 
 import com.zetaplugins.zetacore.ZetaCorePlugin;
-import com.zetaplugins.zetacore.services.messages.Messenger;
+import com.zetaplugins.zetacore.messaging.Messenger;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -47,7 +47,7 @@ public final class DebugCommandHandlerBuilder {
         return this;
     }
 
-    public DebugCommandHandlerBuilder setMessenger(com.zetaplugins.zetacore.services.messages.Messenger messenger) {
+    public DebugCommandHandlerBuilder setMessenger(com.zetaplugins.zetacore.messaging.Messenger messenger) {
         this.messenger = messenger;
         return this;
     }

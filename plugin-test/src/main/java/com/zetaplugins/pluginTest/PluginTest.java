@@ -1,19 +1,17 @@
 package com.zetaplugins.pluginTest;
 
 import com.zetaplugins.zetacore.ZetaCorePlugin;
+import com.zetaplugins.zetacore.command.registration.AutoCommandRegistrar;
 import com.zetaplugins.zetacore.debug.command.DebugCommandHandler;
-import com.zetaplugins.zetacore.services.bStats.Metrics;
-import com.zetaplugins.zetacore.services.commands.AutoCommandRegistrar;
-import com.zetaplugins.zetacore.services.di.ManagerRegistry;
-import com.zetaplugins.zetacore.services.events.AutoEventRegistrar;
-import com.zetaplugins.zetacore.services.events.ManagerRegistryBuilder;
-import com.zetaplugins.zetacore.services.localization.BukkitLocalizationService;
-import com.zetaplugins.zetacore.services.messages.AdventureMessenger;
-import com.zetaplugins.zetacore.services.messages.Messenger;
-import com.zetaplugins.zetacore.services.papi.PapiExpansionService;
-import com.zetaplugins.zetacore.services.updatechecker.GitHubUpdateChecker;
-import com.zetaplugins.zetacore.services.updatechecker.HangarUpdateChecker;
-import com.zetaplugins.zetacore.services.updatechecker.UpdateChecker;
+import com.zetaplugins.zetacore.event.registration.AutoEventRegistrar;
+import com.zetaplugins.zetacore.event.registration.ManagerRegistryBuilder;
+import com.zetaplugins.zetacore.integration.bstats.Metrics;
+import com.zetaplugins.zetacore.integration.papi.PapiExpansionService;
+import com.zetaplugins.zetacore.integration.updatechecker.HangarUpdateChecker;
+import com.zetaplugins.zetacore.integration.updatechecker.UpdateChecker;
+import com.zetaplugins.zetacore.messaging.AdventureMessenger;
+import com.zetaplugins.zetacore.messaging.Messenger;
+import com.zetaplugins.zetacore.messaging.localization.BukkitLocalizationService;
 
 import java.util.ArrayList;
 import java.util.HashMap;

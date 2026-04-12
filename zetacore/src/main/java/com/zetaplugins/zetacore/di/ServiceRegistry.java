@@ -93,20 +93,16 @@ public class ServiceRegistry {
 
         Deque<Class<?>> stack = creationStack.get();
         if (stack.contains(cls)) {
-            throw new RuntimeException("Circular dependency detected: " + stack + " -> " + cls.getName());
+            throw new ServiceException("Circular dependency detected: " + stack + " -> " + cls.getName());
         }
         stack.push(cls);
         try {
             if (cls.isAnnotationPresent(Service.class)) {
                 ServiceOptions options = getServiceOptions(cls);
                 if (options.scope() == ServiceScope.PROTOTYPE) {
-                    try {
-                        T obj = createInstance(cls);
-                        injectServices(obj);
-                        return obj;
-                    } catch (Exception e) {
-                        throw new RuntimeException("Failed to create prototype instance of " + cls.getName(), e);
-                    }
+                    T obj = createInstance(cls);
+                    injectServices(obj);
+                    return obj;
                 }
             }
 
@@ -117,8 +113,6 @@ public class ServiceRegistry {
             instances.put(cls, obj);
             injectServices(obj);
             return obj;
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to create instance of " + cls.getName(), e);
         } finally {
             stack.pop();
         }
@@ -145,12 +139,11 @@ public class ServiceRegistry {
             T obj = noArg.newInstance();
             injectServices(obj);
             return obj;
-        } catch (InstantiationException | IllegalAccessException | java.lang.reflect.InvocationTargetException | NoSuchMethodException e) {
-            throw new RuntimeException("Failed to create instance of " + cls.getName() + ". The class must have either a no-argument constructor or a constructor that accepts the plugin instance.", e);
-        } catch (ClassCastException e) {
-            throw new RuntimeException("Failed to cast instance of " + cls.getName(), e);
+        } catch (NoSuchMethodException e) {
+            throw new ServiceException("Failed to create instance of " + cls.getName()
+                    + ". The class must have either a no-argument constructor or a constructor that accepts the plugin instance.", e);
         } catch (Exception e) {
-            throw new RuntimeException("Unexpected error while creating instance of " + cls.getName(), e);
+            throw new ServiceException("Failed to create instance of " + cls.getName(), e);
         }
     }
 
@@ -185,8 +178,12 @@ public class ServiceRegistry {
             } else {
                 field.set(target, getOrCreate(field.getType()));
             }
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
+        } catch (ServiceException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ServiceException("Failed to inject field '" + field.getName()
+                    + "' of type " + field.getType().getName()
+                    + " on " + target.getClass().getName(), e);
         }
     }
 
@@ -196,13 +193,15 @@ public class ServiceRegistry {
             for (var method : cls.getDeclaredMethods()) {
                 if (method.isAnnotationPresent(PostConstruct.class)) {
                     if (method.getParameterCount() != 0) {
-                        throw new RuntimeException("@PostConstruct method " + method.getName() + " must have no parameters");
+                        throw new ServiceException("@PostConstruct method " + cls.getName()
+                                + "#" + method.getName() + " must have no parameters");
                     }
                     try {
                         method.setAccessible(true);
                         method.invoke(target);
                     } catch (Exception e) {
-                        throw new RuntimeException("Failed to execute @PostConstruct method " + method.getName(), e);
+                        throw new ServiceException("Failed to execute @PostConstruct method "
+                                + cls.getName() + "#" + method.getName(), e);
                     }
                 }
             }
@@ -212,7 +211,7 @@ public class ServiceRegistry {
 
     private void requireServiceAnnotation(Class<?> cls) {
         if (requireServiceAnnotation && !cls.isAnnotationPresent(Service.class)) {
-            throw new RuntimeException("Class " + cls.getName() + " is not annotated with @Service");
+            throw new ServiceException("Class " + cls.getName() + " is not annotated with @Service");
         }
     }
 

@@ -136,9 +136,7 @@ public class ServiceRegistry {
             }
             Constructor<T> noArg = cls.getDeclaredConstructor();
             noArg.setAccessible(true);
-            T obj = noArg.newInstance();
-            injectServices(obj);
-            return obj;
+            return noArg.newInstance();
         } catch (NoSuchMethodException e) {
             throw new ServiceException("Failed to create instance of " + cls.getName()
                     + ". The class must have either a no-argument constructor or a constructor that accepts the plugin instance.", e);

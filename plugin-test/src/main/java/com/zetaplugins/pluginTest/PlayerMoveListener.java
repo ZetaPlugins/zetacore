@@ -1,6 +1,6 @@
 package com.zetaplugins.pluginTest;
 
-import com.zetaplugins.zetacore.di.annotation.InjectService;
+import com.zetaplugins.zetacore.di.annotation.Inject;
 import com.zetaplugins.zetacore.event.annotation.AutoRegisterListener;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -9,7 +9,7 @@ import org.bukkit.event.player.PlayerMoveEvent;
 @AutoRegisterListener
 public class PlayerMoveListener implements Listener {
 
-    @InjectService
+    @Inject
     CountService countService;
 
     @EventHandler

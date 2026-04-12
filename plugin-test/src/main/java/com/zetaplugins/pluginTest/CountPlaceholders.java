@@ -1,6 +1,6 @@
 package com.zetaplugins.pluginTest;
 
-import com.zetaplugins.zetacore.di.annotation.InjectService;
+import com.zetaplugins.zetacore.di.annotation.Inject;
 import com.zetaplugins.zetacore.di.annotation.Service;
 import com.zetaplugins.zetacore.integration.papi.annotation.Papi;
 import com.zetaplugins.zetacore.integration.papi.annotation.PapiParam;
@@ -9,7 +9,7 @@ import org.bukkit.entity.Player;
 @Service
 public class CountPlaceholders {
 
-    @InjectService
+    @Inject
     private CountService countService;
 
     @Papi(identifier = "count")

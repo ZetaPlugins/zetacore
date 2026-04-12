@@ -1,7 +1,6 @@
 package com.zetaplugins.zetacore.di;
 
-import com.zetaplugins.zetacore.di.annotation.InjectService;
-import com.zetaplugins.zetacore.di.annotation.InjectPlugin;
+import com.zetaplugins.zetacore.di.annotation.Inject;
 import com.zetaplugins.zetacore.di.annotation.Service;
 import com.zetaplugins.zetacore.di.annotation.PostConstruct;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -163,8 +162,7 @@ public class ServiceRegistry {
         Class<?> cls = target.getClass();
         while (cls != null && cls != Object.class) {
             for (Field field : cls.getDeclaredFields()) {
-                injectServiceIntoField(field, target);
-                injectPluginIntoField(field, target);
+                injectField(field, target);
             }
             cls = cls.getSuperclass();
         }
@@ -172,30 +170,23 @@ public class ServiceRegistry {
         callPostConstructMethods(target);
     }
 
-    private void injectServiceIntoField(Field field, Object target) {
-        if (!field.isAnnotationPresent(InjectService.class)) return;
+    /**
+     * Injects a service instance into a single field if it is annotated with @Inject. Supports injection of the plugin instance and other registered services.
+     * @param field The field to inject into.
+     * @param target The target object containing the field.
+     */
+    private void injectField(Field field, Object target) {
+        if (!field.isAnnotationPresent(Inject.class)) return;
 
-        Object instance = getOrCreate(field.getType());
         try {
             field.setAccessible(true);
-            field.set(target, instance);
+            if (JavaPlugin.class.isAssignableFrom(field.getType())) {
+                field.set(target, plugin);
+            } else {
+                field.set(target, getOrCreate(field.getType()));
+            }
         } catch (IllegalAccessException e) {
             throw new RuntimeException(e);
-        }
-    }
-
-    private void injectPluginIntoField(Field field, Object target) {
-        if (field.isAnnotationPresent(InjectPlugin.class)) {
-            if (!JavaPlugin.class.isAssignableFrom(field.getType())) {
-                throw new RuntimeException("Field " + field.getName() + " is annotated with @InjectPlugin but is not of type JavaPlugin or a subclass.");
-            }
-
-            try {
-                field.setAccessible(true);
-                field.set(target, plugin);
-            } catch (IllegalAccessException e) {
-                throw new RuntimeException(e);
-            }
         }
     }
 
@@ -248,7 +239,7 @@ public class ServiceRegistry {
 
     public static class Builder {
         private JavaPlugin plugin;
-        private boolean requireManagerAnnotation = false;
+        private boolean requireServiceAnnotation = false;
         private String packagePrefix;
 
         public Builder setPlugin(JavaPlugin plugin) {
@@ -257,8 +248,8 @@ public class ServiceRegistry {
             return this;
         }
 
-        public Builder setRequireManagerAnnotation(boolean requireManagerAnnotation) {
-            this.requireManagerAnnotation = requireManagerAnnotation;
+        public Builder setRequireServiceAnnotation(boolean requireServiceAnnotation) {
+            this.requireServiceAnnotation = requireServiceAnnotation;
             return this;
         }
 
@@ -268,9 +259,9 @@ public class ServiceRegistry {
         }
 
         public ServiceRegistry build() {
-            if (plugin == null) throw new IllegalStateException("Plugin must be set before building ManagerRegistry.");
-            if (packagePrefix == null) throw new IllegalStateException("Package prefix must be set before building ManagerRegistry.");
-            return new ServiceRegistry(plugin, requireManagerAnnotation, packagePrefix);
+            if (plugin == null) throw new IllegalStateException("Plugin must be set before building ServiceRegistry.");
+            if (packagePrefix == null) throw new IllegalStateException("Package prefix must be set before building ServiceRegistry.");
+            return new ServiceRegistry(plugin, requireServiceAnnotation, packagePrefix);
         }
     }
 }

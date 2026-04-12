@@ -3,7 +3,7 @@ package com.zetaplugins.pluginTest;
 import com.zetaplugins.zetacore.command.ArgumentList;
 import com.zetaplugins.zetacore.command.annotation.AutoRegisterCommand;
 import com.zetaplugins.zetacore.command.exception.CommandException;
-import com.zetaplugins.zetacore.di.annotation.InjectService;
+import com.zetaplugins.zetacore.di.annotation.Inject;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
@@ -18,7 +18,7 @@ import java.util.List;
 )
 public class CountCommand extends TestPluginCommand {
 
-    @InjectService
+    @Inject
     private CountService countService;
 
     public CountCommand(PluginTest plugin) {

@@ -38,7 +38,7 @@ public final class PluginTest extends ZetaCorePlugin {
         var serviceRegistry = new ServiceRegistry.Builder()
                 .setPlugin(this)
                 .setPackagePrefix(PACKAGE_PREFIX)
-                .setRequireManagerAnnotation(true)
+                .setRequireServiceAnnotation(true)
                 .build();
         serviceRegistry.initializeEagerServices();
         System.out.println("Initialized Managers!");

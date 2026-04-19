@@ -1,8 +1,6 @@
 package com.zetaplugins.zetacore.command;
 
 import com.zetaplugins.zetacore.command.exception.CommandException;
-import com.zetaplugins.zetacore.command.exception.CommandPermissionException;
-import com.zetaplugins.zetacore.command.exception.CommandUsageException;
 import com.zetaplugins.zetacore.command.exception.GenericCommandException;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -47,8 +45,7 @@ public abstract class PluginCommand<T extends JavaPlugin> implements CommandExec
      *
      * @param ctx The context of the command execution, containing the sender, command, label, and arguments
      * @return Whether the command was executed successfully
-     * @throws CommandPermissionException If the sender does not have permission to execute the command
-     * @throws CommandUsageException If the command was used incorrectly
+     * @throws CommandException If an error occurs during command execution
      */
     public abstract boolean execute(CommandContext ctx) throws CommandException ;
 

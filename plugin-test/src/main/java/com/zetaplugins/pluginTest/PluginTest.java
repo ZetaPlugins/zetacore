@@ -12,6 +12,7 @@ import com.zetaplugins.zetacore.integration.updatechecker.UpdateChecker;
 import com.zetaplugins.zetacore.messaging.AdventureMessenger;
 import com.zetaplugins.zetacore.messaging.Messenger;
 import com.zetaplugins.zetacore.messaging.localization.BukkitLocalizationService;
+import com.zetaplugins.zetacore.permission.PermissionRegistrar;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -56,6 +57,9 @@ public final class PluginTest extends ZetaCorePlugin {
         Map<String, String> configs = new HashMap<>();
         configs.put("config.yml", getConfig().saveToString());
         cmdRegistrar.registerCommand("testpldebug", new DebugCommandHandler("MODRINTHID", this, getPluginFile(), "testplugin.debug", configs, getMessenger()));
+
+        int registered = PermissionRegistrar.registerAll(Permissions.class);
+        getLogger().info("Registered " + registered + " permissions!");
 
         // bStats Metrics
         var metrics = createBStatsMetrics(0);

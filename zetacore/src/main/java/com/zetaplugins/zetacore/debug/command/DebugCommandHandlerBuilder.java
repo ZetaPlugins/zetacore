@@ -2,6 +2,7 @@ package com.zetaplugins.zetacore.debug.command;
 
 import com.zetaplugins.zetacore.ZetaCorePlugin;
 import com.zetaplugins.zetacore.messaging.Messenger;
+import com.zetaplugins.zetacore.permission.Permission;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.io.File;
@@ -29,6 +30,11 @@ public final class DebugCommandHandlerBuilder {
 
     public DebugCommandHandlerBuilder withPermission(String permission) {
         this.permission = permission;
+        return this;
+    }
+
+    public DebugCommandHandlerBuilder withPermission(Permission permission) {
+        this.permission = permission.getValue();
         return this;
     }
 

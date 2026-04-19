@@ -45,32 +45,27 @@ public abstract class PluginCommand<T extends JavaPlugin> implements CommandExec
     /**
      * Execute the command
      *
-     * @param sender The sender of the command
-     * @param command The command that was executed
-     * @param label The label of the command (The alias used)
-     * @param args The arguments of the command
+     * @param ctx The context of the command execution, containing the sender, command, label, and arguments
      * @return Whether the command was executed successfully
      * @throws CommandPermissionException If the sender does not have permission to execute the command
      * @throws CommandUsageException If the command was used incorrectly
      */
-    public abstract boolean execute(CommandSender sender, Command command, String label, ArgumentList args) throws CommandException ;
+    public abstract boolean execute(CommandContext ctx) throws CommandException ;
 
     /**
      * The Tabcompletion method for the command
      *
-     * @param sender The sender of the command
-     * @param command The command that is being tab completed
-     * @param args The current arguments of the command
+     * @param ctx The context of the tab completion, containing the sender, command, label, and arguments
      * @return A list of possible completions
      */
-    public abstract List<String> tabComplete(CommandSender sender, Command command, ArgumentList args);
+    public abstract List<String> tabComplete(CommandContext ctx);
 
     @Override
     public boolean onCommand(@NotNull CommandSender commandSender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
         var argumentList = new ArgumentList(args);
 
         try {
-            return execute(commandSender, command, label, argumentList);
+            return execute(new CommandContext(commandSender, command, label, argumentList));
         } catch (CommandException e) {
             return handleCommandException(commandSender, command, label, argumentList, e);
         }
@@ -78,7 +73,7 @@ public abstract class PluginCommand<T extends JavaPlugin> implements CommandExec
 
     @Override
     public @Nullable List<String> onTabComplete(@NotNull CommandSender sender, @NotNull Command command, @NotNull String label, @NotNull String[] args) {
-        return tabComplete(sender, command, new ArgumentList(args));
+        return tabComplete(new CommandContext(sender, command, label, new ArgumentList(args)));
     }
 
     /**

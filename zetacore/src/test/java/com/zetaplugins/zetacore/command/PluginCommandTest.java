@@ -46,12 +46,12 @@ class PluginCommandTest {
         }
 
         @Override
-        public boolean execute(CommandSender sender, Command command, String label, ArgumentList args) throws CommandException {
+        public boolean execute(CommandContext ctx) throws CommandException {
             return returnValue;
         }
 
         @Override
-        public List<String> tabComplete(CommandSender sender, Command command, ArgumentList args) {
+        public List<String> tabComplete(CommandContext ctx) {
             return List.of("completion");
         }
     }
@@ -78,12 +78,12 @@ class PluginCommandTest {
             ThrowingCommand(JavaPlugin plugin) { super(plugin); }
 
             @Override
-            public boolean execute(CommandSender sender, Command command, String label, ArgumentList args) throws CommandException {
+            public boolean execute(CommandContext ctx) throws CommandException {
                 throw new CommandUsageException("Usage error");
             }
 
             @Override
-            public List<String> tabComplete(CommandSender sender, Command command, ArgumentList args) {
+            public List<String> tabComplete(CommandContext ctx) {
                 return List.of();
             }
         }
@@ -107,12 +107,12 @@ class PluginCommandTest {
             ThrowingCommand(JavaPlugin plugin) { super(plugin); }
 
             @Override
-            public boolean execute(CommandSender sender, Command command, String label, ArgumentList args) throws CommandException {
+            public boolean execute(CommandContext ctx) throws CommandException {
                 throw new CommandUsageException("Usage error");
             }
 
             @Override
-            public List<String> tabComplete(CommandSender sender, Command command, ArgumentList args) {
+            public List<String> tabComplete(CommandContext ctx) {
                 return List.of();
             }
         }

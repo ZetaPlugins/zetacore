@@ -1,22 +1,18 @@
 package com.zetaplugins.pluginTest;
 
-import com.zetaplugins.zetacore.command.ArgumentList;
+import com.zetaplugins.zetacore.command.CommandContext;
 import com.zetaplugins.zetacore.command.PluginCommand;
-import com.zetaplugins.zetacore.command.annotation.AutoRegisterCommand;
+import com.zetaplugins.zetacore.command.annotation.*;
 import com.zetaplugins.zetacore.command.exception.CommandException;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.List;
 
-@AutoRegisterCommand(
-        commands = "greet",
-        description = "Greets a player",
-        usage = "/greet <player>",
-        permission = "myplugin.command.greet",
-        aliases = {"hello"}
-)
+@Command("greet")
+@Description("A %command% that greets a player")
+@Usage("/<command> <player>")
+@Permission("myplugin.command.greet")
+@Alias("hello")
 public class GreetCommand extends PluginCommand<PluginTest> {
 
     public GreetCommand(PluginTest plugin) {
@@ -24,7 +20,10 @@ public class GreetCommand extends PluginCommand<PluginTest> {
     }
 
     @Override
-    public boolean execute(CommandSender sender, Command command, String label, ArgumentList args) throws CommandException {
+    public boolean execute(CommandContext ctx) throws CommandException {
+        var args = ctx.getArgs();
+        var sender = ctx.getSender();
+
         Player targetPlayer = args.getPlayer(0, getPlugin());
 
         if (targetPlayer == null) {
@@ -37,8 +36,8 @@ public class GreetCommand extends PluginCommand<PluginTest> {
     }
 
     @Override
-    public List<String> tabComplete(CommandSender sender, Command command, ArgumentList args) {
-        if (args.getCurrentArgIndex() == 0) return getPlayerOptions(args.getCurrentArg());
+    public List<String> tabComplete(CommandContext ctx) {
+        if (ctx.getArgs().getCurrentArgIndex() == 0) return getPlayerOptions(ctx.getArgs().getCurrentArg());
         else return List.of();
     }
 }

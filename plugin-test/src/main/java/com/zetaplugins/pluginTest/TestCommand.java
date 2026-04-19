@@ -1,21 +1,17 @@
 package com.zetaplugins.pluginTest;
 
-import com.zetaplugins.zetacore.command.ArgumentList;
-import com.zetaplugins.zetacore.command.annotation.AutoRegisterCommand;
+import com.zetaplugins.zetacore.command.CommandContext;
+import com.zetaplugins.zetacore.command.annotation.*;
 import com.zetaplugins.zetacore.command.exception.CommandException;
 import com.zetaplugins.zetacore.command.exception.CommandSenderMustBePlayerException;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
 
 import java.util.List;
 
-@AutoRegisterCommand(
-        commands = {"testcommand", "test2command"},
-        description = "A %command% for demonstration purposes",
-        permission = "testplugin.%command%",
-        usage = "/<command> <test1, test2. test3>"
-)
+@Command({"testcommand", "test2command"})
+@Description("A %command% for demonstration purposes")
+@Permission("testplugin.%command%")
+@Usage("/<command> <test1, test2. test3>")
 public class TestCommand extends TestPluginCommand {
 
     public TestCommand(PluginTest plugin) {
@@ -23,7 +19,11 @@ public class TestCommand extends TestPluginCommand {
     }
 
     @Override
-    public boolean execute(CommandSender sender, Command command, String label, ArgumentList args) throws CommandException {
+    public boolean execute(CommandContext ctx) throws CommandException {
+        var sender = ctx.getSender();
+        var command = ctx.getCommand();
+        var args = ctx.getArgs();
+
         if (!(sender instanceof Player player)) throw new CommandSenderMustBePlayerException();
 
         player.sendMessage("You executed the " + command.getName() + " command with arguments: " + args.toString());
@@ -31,7 +31,7 @@ public class TestCommand extends TestPluginCommand {
     }
 
     @Override
-    public List<String> tabComplete(CommandSender sender, Command command, ArgumentList args) {
+    public List<String> tabComplete(CommandContext ctx) {
         return List.of("man");
     }
 }

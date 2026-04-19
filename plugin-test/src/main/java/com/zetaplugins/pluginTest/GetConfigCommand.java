@@ -1,21 +1,19 @@
 package com.zetaplugins.pluginTest;
 
 import com.zetaplugins.pluginTest.config.MyConfig;
-import com.zetaplugins.zetacore.command.ArgumentList;
-import com.zetaplugins.zetacore.command.annotation.AutoRegisterCommand;
+import com.zetaplugins.zetacore.command.CommandContext;
+import com.zetaplugins.zetacore.command.annotation.Command;
+import com.zetaplugins.zetacore.command.annotation.Description;
+import com.zetaplugins.zetacore.command.annotation.Usage;
 import com.zetaplugins.zetacore.command.exception.CommandException;
 import com.zetaplugins.zetacore.config.ConfigService;
 import com.zetaplugins.zetacore.di.annotation.Inject;
-import org.bukkit.command.Command;
-import org.bukkit.command.CommandSender;
 
 import java.util.List;
 
-@AutoRegisterCommand(
-        commands = "getconfig",
-        description = "Get the plugin configuration",
-        usage = "/getconfig"
-)
+@Command("getconfig")
+@Description("A %command% that retrieves and displays the plugin configuration")
+@Usage("/<command>")
 public class GetConfigCommand extends TestPluginCommand {
 
     @Inject
@@ -26,7 +24,8 @@ public class GetConfigCommand extends TestPluginCommand {
     }
 
     @Override
-    public boolean execute(CommandSender sender, Command command, String label, ArgumentList args) throws CommandException {
+    public boolean execute(CommandContext ctx) throws CommandException {
+        var sender = ctx.getSender();
         MyConfig config = configService.getConfig(MyConfig.class);
         sender.sendMessage("Current language setting: " + config.lang);
         sender.sendMessage("Feature enabled: " + config.settings.enableFeature);
@@ -45,7 +44,7 @@ public class GetConfigCommand extends TestPluginCommand {
     }
 
     @Override
-    public List<String> tabComplete(CommandSender sender, Command command, ArgumentList args) {
+    public List<String> tabComplete(CommandContext ctx) {
         return List.of();
     }
 }

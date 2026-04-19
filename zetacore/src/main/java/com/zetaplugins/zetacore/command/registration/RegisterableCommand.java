@@ -1,12 +1,12 @@
 package com.zetaplugins.zetacore.command.registration;
 
-import com.zetaplugins.zetacore.command.annotation.AutoRegisterCommand;
+import com.zetaplugins.zetacore.command.annotation.*;
 import org.bukkit.command.*;
+import org.bukkit.command.Command;
 import org.bukkit.command.defaults.BukkitCommand;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.jetbrains.annotations.NotNull;
 
-import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 
@@ -102,46 +102,37 @@ public record RegisterableCommand(
         }
     }
 
-    /**
-     * Creates a RegisterableCommand from an AutoRegisterCommand annotation
-     * @param name The name of the command
-     * @param annotation The AutoRegisterCommand annotation
-     * @return The RegisterableCommand
-     */
-    public static RegisterableCommand fromAnnotation(
-            String name,
-            AutoRegisterCommand annotation
-    ) {
+    public static RegisterableCommand fromClass(String name, Class<?> clazz) {
         String[] aliases;
         String description;
         String usage;
         String permission;
 
-        try {
-            Method aliasesMethod = annotation.annotationType().getMethod("aliases");
-            aliases = (String[]) aliasesMethod.invoke(annotation);
-        } catch (Exception e) {
+        Alias aliasAnnotation = clazz.getAnnotation(Alias.class);
+        if (aliasAnnotation != null) {
+            aliases = aliasAnnotation.value();
+        } else {
             aliases = new String[0];
         }
 
-        try {
-            Method descriptionMethod = annotation.annotationType().getMethod("description");
-            description = (String) descriptionMethod.invoke(annotation);
-        } catch (Exception e) {
+        Description descriptionAnnotation = clazz.getAnnotation(Description.class);
+        if (descriptionAnnotation != null) {
+            description = descriptionAnnotation.value();
+        } else {
             description = null;
         }
 
-        try {
-            Method usageMethod = annotation.annotationType().getMethod("usage");
-            usage = (String) usageMethod.invoke(annotation);
-        } catch (Exception e) {
+        Usage usageAnnotation = clazz.getAnnotation(Usage.class);
+        if (usageAnnotation != null) {
+            usage = usageAnnotation.value();
+        } else {
             usage = null;
         }
 
-        try {
-            Method permissionMethod = annotation.annotationType().getMethod("permission");
-            permission = (String) permissionMethod.invoke(annotation);
-        } catch (Exception e) {
+        Permission permissionAnnotation = clazz.getAnnotation(Permission.class);
+        if (permissionAnnotation != null) {
+            permission = permissionAnnotation.value();
+        } else {
             permission = null;
         }
 

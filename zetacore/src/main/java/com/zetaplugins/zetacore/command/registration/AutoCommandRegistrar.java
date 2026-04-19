@@ -1,6 +1,6 @@
 package com.zetaplugins.zetacore.command.registration;
 
-import com.zetaplugins.zetacore.command.annotation.AutoRegisterCommand;
+import com.zetaplugins.zetacore.command.annotation.Command;
 import com.zetaplugins.zetacore.command.annotation.TabCompleterHandler;
 import com.zetaplugins.zetacore.di.ServiceRegistry;
 import org.bukkit.Bukkit;
@@ -10,14 +10,13 @@ import org.reflections.Reflections;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.*;
 import java.util.function.Predicate;
 import java.util.logging.Level;
 
 /**
  * Manages the registration of commands and tab completers for a plugin.
- * Use the {@link AutoRegisterCommand} annotation to mark command classes for automatic registration.
+ * Use the {@link Command} annotation to mark command classes for automatic registration.
  * Use the {@link TabCompleterHandler} annotation to mark tab completer classes for automatic registration.
  */
 public class AutoCommandRegistrar implements CommandRegistrar {
@@ -72,7 +71,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
     }
 
     /**
-     * Registers all commands annotated with {@link AutoRegisterCommand} and tab completers annotated with {@link TabCompleterHandler}.
+     * Registers all commands annotated with {@link Command} and tab completers annotated with {@link TabCompleterHandler}.
      * @return A list of names of the registered commands.
      */
     public List<String> registerAllCommands() {
@@ -80,7 +79,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
     }
 
     /**
-     * Registers all commands annotated with {@link AutoRegisterCommand} and tab completers annotated with {@link TabCompleterHandler}.
+     * Registers all commands annotated with {@link Command} and tab completers annotated with {@link TabCompleterHandler}.
      * @param commandNameFilter A predicate to filter which command names to register.
      * @return A list of names of the registered commands.
      */
@@ -125,7 +124,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
             }
         }
 
-        Set<Class<?>> commandClasses = reflections.getTypesAnnotatedWith(AutoRegisterCommand.class);
+        Set<Class<?>> commandClasses = reflections.getTypesAnnotatedWith(Command.class);
 
         for (Class<?> clazz : commandClasses) {
             if (CommandExecutor.class.isAssignableFrom(clazz)) {
@@ -170,35 +169,24 @@ public class AutoCommandRegistrar implements CommandRegistrar {
         List<String> result = new ArrayList<>();
 
         try {
-            AutoRegisterCommand annotation = commandClass.getAnnotation(AutoRegisterCommand.class);
-            if (annotation == null) return result;
+            Command commandAnnotation = commandClass.getAnnotation(Command.class);
+            if (commandAnnotation == null) return result;
 
             List<RegisterableCommand> commandsToRegister = new ArrayList<>();
 
             try {
-                Method commandsMethod = annotation.annotationType().getMethod("commands");
-                String[] names = (String[]) commandsMethod.invoke(annotation);
-
-                if (names != null && names.length > 0) {
-                    for (String n : names) if (n != null && !n.isEmpty() && commandNameFilter.test(n)) {
-                        commandsToRegister.add(RegisterableCommand.fromAnnotation(n, annotation));
+                String[] commands = commandAnnotation.value();
+                if (commands != null && commands.length > 0) {
+                    for (String n : commands) if (n != null && !n.isEmpty() && commandNameFilter.test(n)) {
+                        commandsToRegister.add(RegisterableCommand.fromClass(n, commandClass));
                     }
                 } else {
-                    throw new NoSuchMethodException();
+                    plugin.getLogger().warning("Command annotation on " + commandClass.getSimpleName() +
+                            " has no 'value' method or it returned an empty array");
                 }
-            } catch (NoSuchMethodException ignored) {
-                try {
-                    Method commandMethod = annotation.annotationType().getMethod("command");
-                    String name = (String) commandMethod.invoke(annotation);
-                    if (name != null && !name.isEmpty() && commandNameFilter.test(name)) {
-                        commandsToRegister.add(RegisterableCommand.fromAnnotation(name, annotation));
-                    } else {
-                        throw new NoSuchMethodException();
-                    }
-                } catch (NoSuchMethodException ignored2) {
-                    plugin.getLogger().warning("AutoRegisterCommand annotation on " + commandClass.getSimpleName() +
-                            " has no 'commands' or 'command' method");
-                }
+            } catch (Exception e) {
+                plugin.getLogger().log(Level.WARNING, "Failed to read 'value' from Command annotation on "
+                        + commandClass.getSimpleName(), e);
             }
 
             if (commandsToRegister.isEmpty()) return result;

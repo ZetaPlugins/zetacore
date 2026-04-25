@@ -7,7 +7,7 @@ import org.json.simple.JSONObject;
  * @param pluginName the name of the plugin
  * @param pluginVersion the version of the plugin
  */
-public record InstalledPlugin(String pluginName, String pluginVersion, boolean enabled) implements JsonSeriaizable {
+public record InstalledPlugin(String pluginName, String pluginVersion, boolean enabled) implements JsonSerializable {
     @Override
     public String toString() {
         return pluginName + " v" + pluginVersion + (enabled ? " (enabled)" : " (disabled)");

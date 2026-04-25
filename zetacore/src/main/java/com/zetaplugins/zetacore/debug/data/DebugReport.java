@@ -36,7 +36,7 @@ public record DebugReport(
         String latestLogs,
         Set<InstalledPlugin> installedPlugins,
         Map<String, String> configurations
-) implements JsonSeriaizable {
+) implements JsonSerializable {
     @SuppressWarnings("unchecked")
     @Override
     public JSONObject toJson() {
@@ -55,7 +55,7 @@ public record DebugReport(
 
         JSONArray pluginsArray = new JSONArray();
         for (InstalledPlugin plugin : installedPlugins) {
-            if (plugin != null) pluginsArray.add(((JsonSeriaizable) plugin).toJson());
+            if (plugin != null) pluginsArray.add(((JsonSerializable) plugin).toJson());
         }
         json.put("installedPlugins", pluginsArray);
 

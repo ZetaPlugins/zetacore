@@ -41,11 +41,13 @@ public class HangarUpdateChecker extends UpdateChecker {
             setNewVersionAvailable(true);
             setLatestVersion(latestVersion);
 
-            getLogger().info(getNewVersionConsoleMessage(
-                    latestVersion,
-                    currentVersion,
-                    getVersionUrl(latestVersion)
-            ));
+            if (logMessage) {
+                getLogger().info(getNewVersionConsoleMessage(
+                        latestVersion,
+                        currentVersion,
+                        getVersionUrl(latestVersion)
+                ));
+            }
         } else {
             setNewVersionAvailable(false);
         }

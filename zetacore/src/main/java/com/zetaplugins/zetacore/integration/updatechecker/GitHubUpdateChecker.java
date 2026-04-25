@@ -42,11 +42,13 @@ public class GitHubUpdateChecker extends UpdateChecker {
             setNewVersionAvailable(true);
             setLatestVersion(latestTag);
 
-            getLogger().info(getNewVersionConsoleMessage(
-                    latestTag,
-                    currentVersion,
-                    getLatestVersionUrl()
-            ));
+            if (logMessage) {
+                getLogger().info(getNewVersionConsoleMessage(
+                        latestTag,
+                        currentVersion,
+                        getLatestVersionUrl()
+                ));
+            }
         } else {
             setNewVersionAvailable(false);
         }

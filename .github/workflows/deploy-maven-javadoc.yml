@@ -32,7 +32,7 @@ jobs:
 
       - name: Add CNAME file
         run: |
-          echo "jd.zetacore.zetaplugins.com" > zetacore/target/reports/apidocs/CNAME
+          echo "jd.zetacore.zetaplugins.com" > target/reports/apidocs/CNAME
 
       - name: Deploy to GitHub Pages
         uses: peaceiris/actions-gh-pages@v3

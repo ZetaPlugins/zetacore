@@ -28,7 +28,7 @@ jobs:
             ${{ runner.os }}-maven-
 
       - name: Build Javadocs
-        run: mvn -pl zetacore clean javadoc:javadoc
+        run: mvn clean javadoc:javadoc
 
       - name: Add CNAME file
         run: |
@@ -38,4 +38,4 @@ jobs:
         uses: peaceiris/actions-gh-pages@v3
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: zetacore/target/reports/apidocs
+          publish_dir: target/reports/apidocs

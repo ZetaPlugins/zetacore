@@ -32,7 +32,7 @@ jobs:
             ${{ runner.os }}-maven-
 
       - name: Run Maven tests for zetacore
-        run: mvn clean test -pl zetacore -am
+        run: mvn clean test -am
         continue-on-error: false
 
       - name: Publish Test Results

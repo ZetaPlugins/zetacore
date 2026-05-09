@@ -20,12 +20,11 @@ jobs:
           cache: 'maven'
 
       - name: Build zetacore module
-        run: mvn -pl zetacore -am clean package -DskipTests
+        run: mvn -am clean package -DskipTests
 
       - name: Extract Maven coordinates for zetacore
         id: meta
         run: |
-          cd zetacore
           echo "groupId=$(mvn help:evaluate -Dexpression=project.groupId -q -DforceStdout)" >> $GITHUB_OUTPUT
           echo "artifactId=$(mvn help:evaluate -Dexpression=project.artifactId -q -DforceStdout)" >> $GITHUB_OUTPUT
           echo "version=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)" >> $GITHUB_OUTPUT
@@ -62,18 +61,18 @@ jobs:
             
           mkdir -p checksums
           # copy primary artifacts (main jar + pom)
-          cp zetacore/target/$ARTIFACT_ID-$VERSION.jar checksums/ || { echo "Main JAR not found"; exit 1; }
-          cp zetacore/pom.xml checksums/$ARTIFACT_ID-$VERSION.pom || { echo "POM not found"; exit 1; }
+          cp target/$ARTIFACT_ID-$VERSION.jar checksums/ || { echo "Main JAR not found"; exit 1; }
+          cp pom.xml checksums/$ARTIFACT_ID-$VERSION.pom || { echo "POM not found"; exit 1; }
             
           # copy sources and javadoc jars if they were produced
-          if [ -f "zetacore/target/$ARTIFACT_ID-$VERSION-sources.jar" ]; then
-            cp zetacore/target/$ARTIFACT_ID-$VERSION-sources.jar checksums/
+          if [ -f "target/$ARTIFACT_ID-$VERSION-sources.jar" ]; then
+            cp target/$ARTIFACT_ID-$VERSION-sources.jar checksums/
           else
             echo "Warning: sources jar not found; continuing without it."
           fi
             
-          if [ -f "zetacore/target/$ARTIFACT_ID-$VERSION-javadoc.jar" ]; then
-            cp zetacore/target/$ARTIFACT_ID-$VERSION-javadoc.jar checksums/
+          if [ -f "target/$ARTIFACT_ID-$VERSION-javadoc.jar" ]; then
+            cp target/$ARTIFACT_ID-$VERSION-javadoc.jar checksums/
           else
             echo "Warning: javadoc jar not found; continuing without it."
           fi

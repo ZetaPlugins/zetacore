@@ -1,17 +1,17 @@
 package com.zetaplugins.zetacore.config.testconfigs;
 
 
-import com.zetaplugins.zetacore.config.annotation.ConfigAttribute;
-import com.zetaplugins.zetacore.config.annotation.PluginConfig;
+import com.zetaplugins.zetacore.config.annotation.ConfigKey;
+import com.zetaplugins.zetacore.config.annotation.ConfigFile;
 
 import java.util.List;
 import java.util.Map;
 
-@PluginConfig("config.yml")
+@ConfigFile("config.yml")
 public class MyConfig {
     public String lang = "de-DE";
     public SomeStatus someStatus = SomeStatus.ACTIVE;
-    @ConfigAttribute(name = "attr-with-dash")
+    @ConfigKey(name = "attr-with-dash")
     public String attrWithDash = "default-test-value";
     public List<SomeStatus> statusList = List.of(SomeStatus.ACTIVE, SomeStatus.INACTIVE);
     public Map<SomeStatus, Integer> statusToCodeMap = Map.of(

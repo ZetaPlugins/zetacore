@@ -1,10 +1,10 @@
 package com.zetaplugins.zetacore.config.testconfigs;
 
-import com.zetaplugins.zetacore.config.annotation.NestedConfig;
+import com.zetaplugins.zetacore.config.annotation.ConfigSection;
 
 import java.util.List;
 
-@NestedConfig
+@ConfigSection
 public class ItemConfigSection {
     private String name;
     private int id;

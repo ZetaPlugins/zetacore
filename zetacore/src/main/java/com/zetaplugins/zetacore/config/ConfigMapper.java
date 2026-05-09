@@ -1,8 +1,8 @@
 package com.zetaplugins.zetacore.config;
 
-import com.zetaplugins.zetacore.config.annotation.ConfigAttribute;
-import com.zetaplugins.zetacore.config.annotation.PluginConfig;
-import com.zetaplugins.zetacore.config.annotation.NestedConfig;
+import com.zetaplugins.zetacore.config.annotation.ConfigKey;
+import com.zetaplugins.zetacore.config.annotation.ConfigFile;
+import com.zetaplugins.zetacore.config.annotation.ConfigSection;
 import org.bukkit.configuration.ConfigurationSection;
 import org.bukkit.configuration.file.FileConfiguration;
 
@@ -17,10 +17,10 @@ import java.util.Map;
 public class ConfigMapper {
 
     public static String toFileName(Class<?> configClass) {
-        if (!configClass.isAnnotationPresent(PluginConfig.class)) {
+        if (!configClass.isAnnotationPresent(ConfigFile.class)) {
             throw new IllegalArgumentException("Class " + configClass.getName() + " is not annotated with @ConfigProperties");
         }
-        PluginConfig annotation = configClass.getAnnotation(PluginConfig.class);
+        ConfigFile annotation = configClass.getAnnotation(ConfigFile.class);
         return annotation.value();
     }
 
@@ -58,7 +58,7 @@ public class ConfigMapper {
             String fieldName = getFieldName(field);
 
             // Nested objects annotated with @NestedConfig
-            if (fieldType.isAnnotationPresent(NestedConfig.class)) {
+            if (fieldType.isAnnotationPresent(ConfigSection.class)) {
                 ConfigurationSection nestedSection = section.getConfigurationSection(fieldName);
                 if (nestedSection == null) continue;
                 Object nestedInstance = fieldType.getConstructor().newInstance();
@@ -142,7 +142,7 @@ public class ConfigMapper {
 
             Class<?> fieldType = field.getType();
 
-            if (fieldType.isAnnotationPresent(NestedConfig.class) && value instanceof LinkedHashMap<?, ?> nestedMap) {
+            if (fieldType.isAnnotationPresent(ConfigSection.class) && value instanceof LinkedHashMap<?, ?> nestedMap) {
                 Object nestedInstance = fieldType.getConstructor().newInstance();
                 mapFromMap(nestedMap, nestedInstance);
                 field.set(instance, nestedInstance);
@@ -187,7 +187,7 @@ public class ConfigMapper {
             Class<?> listClass = listType instanceof Class<?> c ? c : Object.class;
 
             for (Object item : rawList) {
-                if (listClass.isAnnotationPresent(NestedConfig.class)) {
+                if (listClass.isAnnotationPresent(ConfigSection.class)) {
                     if (item instanceof LinkedHashMap<?, ?> itemMap) {
                         Object nestedInstance = listClass.getConstructor().newInstance();
                         mapFromMap(itemMap, nestedInstance);
@@ -263,7 +263,7 @@ public class ConfigMapper {
             @Override
             public Object apply(Object rawValue) {
                 try {
-                    if (finalValueClass.isAnnotationPresent(NestedConfig.class)) {
+                    if (finalValueClass.isAnnotationPresent(ConfigSection.class)) {
                         if (rawValue instanceof LinkedHashMap<?, ?> itemMap) {
                             Object nestedInstance = finalValueClass.getConstructor().newInstance();
                             mapFromMap(itemMap, nestedInstance);
@@ -352,8 +352,8 @@ public class ConfigMapper {
     }
 
     private static String getFieldName(Field field) {
-        if (field.isAnnotationPresent(ConfigAttribute.class)) {
-            ConfigAttribute annotation = field.getAnnotation(ConfigAttribute.class);
+        if (field.isAnnotationPresent(ConfigKey.class)) {
+            ConfigKey annotation = field.getAnnotation(ConfigKey.class);
             return annotation.name();
         }
         return field.getName();

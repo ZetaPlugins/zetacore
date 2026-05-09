@@ -6,14 +6,14 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotation to mark a class as containing configuration properties.
+ * Indicates that a field represents a configuration attribute.
  */
-@Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
-public @interface PluginConfig {
+@Target(ElementType.FIELD)
+public @interface ConfigKey {
     /**
-     * The name of the configuration file. (e.g., "config.yml")
-     * @return the configuration file name
+     * The name of the configuration attribute.
+     * @return The name of the configuration attribute.
      */
-    String value();
+    String name();
 }

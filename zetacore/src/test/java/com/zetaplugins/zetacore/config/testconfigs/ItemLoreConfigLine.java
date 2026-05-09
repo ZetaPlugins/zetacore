@@ -1,8 +1,8 @@
 package com.zetaplugins.zetacore.config.testconfigs;
 
-import com.zetaplugins.zetacore.config.annotation.NestedConfig;
+import com.zetaplugins.zetacore.config.annotation.ConfigSection;
 
-@NestedConfig
+@ConfigSection
 public class ItemLoreConfigLine {
     private String loreLine;
     private int lineNumber;

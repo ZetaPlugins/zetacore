@@ -27,17 +27,17 @@ public class GetConfigCommand extends TestPluginCommand {
     public boolean execute(CommandContext ctx) throws CommandException {
         var sender = ctx.getSender();
         MyConfig config = configService.getConfig(MyConfig.class);
-        sender.sendMessage("Current language setting: " + config.lang);
-        sender.sendMessage("Feature enabled: " + config.settings.enableFeature);
-        if (config.settings.funnynames != null) {
-            for (String name : config.settings.funnynames) {
+        sender.sendMessage("Current language setting: " + config.getLang());
+        sender.sendMessage("Feature enabled: " + config.getSettings().enableFeature);
+        if (config.getSettings().funnynames != null) {
+            for (String name : config.getSettings().funnynames) {
                 sender.sendMessage("Funny name: " + name);
             }
         } else {
             sender.sendMessage("No funny names found.");
         }
         sender.sendMessage("Items in config:");
-        for (var item : config.items) {
+        for (var item : config.getItems()) {
             sender.sendMessage(item.toString());
         }
         return true;

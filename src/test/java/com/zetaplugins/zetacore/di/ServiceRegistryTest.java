@@ -60,6 +60,20 @@ class ServiceRegistryTest {
         }
     }
 
+    public interface Extension {}
+
+    @Service
+    static class ServiceExtension implements Extension {}
+
+    static class BeanExtension implements Extension {}
+
+    static class ExtensionBeans {
+        @com.zetaplugins.zetacore.di.annotation.Bean
+        BeanExtension beanExtension() {
+            return new BeanExtension();
+        }
+    }
+
     @Service
     static class FieldCycleA {
         @Inject FieldCycleB b;
@@ -110,5 +124,21 @@ class ServiceRegistryTest {
     void rejectsOtherLoggerProviders() {
         assertThrows(ServiceException.class, () -> registry.registerConfiguration(LoggerBeans.class));
         assertThrows(ServiceException.class, () -> registry.registerInstance(Logger.class, Logger.getLogger("other")));
+    }
+
+    @Test
+    void getAllCollectsServicesBeansAndInstances() {
+        registry.registerConfiguration(ExtensionBeans.class);
+
+        var all = registry.getAll(Extension.class);
+
+        assertEquals(2, all.size());
+        assertTrue(all.contains(registry.getOrCreate(ServiceExtension.class)));
+        assertTrue(all.contains(registry.getOrCreate(BeanExtension.class)));
+    }
+
+    @Test
+    void getAllReturnsEmptyListWithoutProviders() {
+        assertTrue(registry.getAll(Runnable.class).isEmpty());
     }
 }

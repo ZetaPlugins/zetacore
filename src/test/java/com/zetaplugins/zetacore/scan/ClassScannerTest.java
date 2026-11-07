@@ -2,6 +2,8 @@ package com.zetaplugins.zetacore.scan;
 
 import com.zetaplugins.zetacore.scan.fixtures.Circle;
 import com.zetaplugins.zetacore.scan.fixtures.Marker;
+import com.zetaplugins.zetacore.scan.fixtures.PlaceholderFixture;
+import com.zetaplugins.zetacore.integration.papi.annotation.Papi;
 import com.zetaplugins.zetacore.scan.fixtures.Shape;
 import com.zetaplugins.zetacore.scan.fixtures.sub.Square;
 import org.junit.jupiter.api.Test;
@@ -34,6 +36,18 @@ class ClassScannerTest {
     @Test
     void returnsEmptyForUnknownPackage() {
         ClassScanner scanner = new ClassScanner("com.zetaplugins.doesnotexist", loader);
+        assertTrue(scanner.getTypesAnnotatedWith(Marker.class).isEmpty());
+    }
+
+    @Test
+    void findsTypesWithAnnotatedMethods() {
+        ClassScanner scanner = new ClassScanner("com.zetaplugins.zetacore.scan.fixtures", loader);
+        assertEquals(Set.of(PlaceholderFixture.class), scanner.getTypesWithMethodsAnnotatedWith(Papi.class));
+    }
+
+    @Test
+    void excludesZetaCoreWhenItLivesInsideTheScannedPackage() {
+        ClassScanner scanner = new ClassScanner("com.zetaplugins", loader);
         assertTrue(scanner.getTypesAnnotatedWith(Marker.class).isEmpty());
     }
 }

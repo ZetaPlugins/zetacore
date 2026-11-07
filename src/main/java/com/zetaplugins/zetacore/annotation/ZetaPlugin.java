@@ -34,4 +34,11 @@ public @interface ZetaPlugin {
      * Defaults to the lowercase plugin name.
      */
     String commandNamespace() default "";
+
+    /**
+     * The bStats plugin id. If set, metrics are started automatically and
+     * {@link com.zetaplugins.zetacore.integration.bstats.MetricsCustomizer}s can add charts.<br/>
+     * Default is 0 (disabled).
+     */
+    int bstatsId() default 0;
 }

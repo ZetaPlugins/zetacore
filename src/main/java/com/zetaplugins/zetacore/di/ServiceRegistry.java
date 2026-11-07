@@ -163,9 +163,11 @@ public class ServiceRegistry {
         if (type.isAnnotationPresent(Service.class) && conditions.matches(type)) return "@Service " + type.getName();
         for (Class<?> service : scanner.getTypesAnnotatedWith(Service.class)) {
             Service annotation = service.getAnnotation(Service.class);
-            if (annotation == null || !conditions.matches(service)) continue;
+            if (annotation == null) continue;
             for (Class<?> bind : annotation.binds()) {
-                if (bind == type) return "@Service(binds = " + type.getSimpleName() + ".class) " + service.getName();
+                if (bind == type && conditions.matches(service)) {
+                    return "@Service(binds = " + type.getSimpleName() + ".class) " + service.getName();
+                }
             }
         }
         return null;
@@ -311,6 +313,49 @@ public class ServiceRegistry {
         } finally {
             stack.pop();
         }
+    }
+
+    /**
+     * Gets all active providers of the given type: registered instances, {@link Bean}s whose declared type is
+     * assignable to it and active singleton {@link Service} classes that implement it. Each provider is created if needed.
+     * <p>
+     * Useful for optional extension points such as customizers, where any number of implementations may exist.
+     * @param type The type to look up.
+     * @return The instances, without duplicates. Empty if there are none.
+     * @param <T> The type.
+     */
+    public <T> List<T> getAll(Class<T> type) {
+        Set<Object> result = Collections.newSetFromMap(new IdentityHashMap<>());
+        List<T> ordered = new ArrayList<>();
+
+        for (Object instance : List.copyOf(instances.values())) {
+            if (type.isInstance(instance) && result.add(instance)) ordered.add(type.cast(instance));
+        }
+        for (BeanDefinition bean : List.copyOf(beanDefinitions.values())) {
+            if (!type.isAssignableFrom(bean.type())) continue;
+            Object instance = getOrCreate(bean.type());
+            if (type.isInstance(instance) && result.add(instance)) ordered.add(type.cast(instance));
+        }
+        for (Class<?> service : scanner.getTypesAnnotatedWith(Service.class)) {
+            if (!type.isAssignableFrom(service) || service.getAnnotation(Service.class) == null) continue;
+            if (service.isInterface() || Modifier.isAbstract(service.getModifiers())) continue;
+            if (getServiceOptions(service).scope() != ServiceScope.SINGLETON || !conditions.matches(service)) continue;
+            Object instance = getOrCreate(service);
+            if (result.add(instance)) ordered.add(type.cast(instance));
+        }
+        return ordered;
+    }
+
+    /**
+     * Gets the number of singleton services, beans and registered instances created so far.
+     * @return The number of distinct singletons.
+     */
+    public int getSingletonCount() {
+        Set<Object> distinct = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (Object instance : instances.values()) {
+            if (managedObjectSet.contains(instance)) distinct.add(instance);
+        }
+        return distinct.size();
     }
 
     /**

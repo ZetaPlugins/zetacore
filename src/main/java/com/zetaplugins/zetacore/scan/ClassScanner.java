@@ -6,6 +6,8 @@ import org.reflections.util.ConfigurationBuilder;
 import org.reflections.util.FilterBuilder;
 
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
+import java.util.LinkedHashSet;
 import java.util.Objects;
 import java.util.Set;
 
@@ -15,8 +17,13 @@ import java.util.Set;
  * The classpath is scanned once, on first use, and the result is reused for every query.
  * Share one instance between the {@link com.zetaplugins.zetacore.di.ServiceRegistry} and the registrars
  * instead of letting each of them scan on its own.
+ * <p>
+ * If ZetaCore is shaded and relocated into the scanned package, its own classes are excluded.
  */
 public class ClassScanner {
+    private static final String ZETACORE_PACKAGE = ClassScanner.class.getPackageName()
+            .substring(0, ClassScanner.class.getPackageName().lastIndexOf('.'));
+
     private final String packagePrefix;
     private final ClassLoader classLoader;
     private volatile Reflections reflections;
@@ -66,17 +73,32 @@ public class ClassScanner {
         return reflections().getSubTypesOf(type);
     }
 
+    /**
+     * Finds all classes that declare at least one method annotated with the given annotation.
+     * @param annotation The method annotation to look for.
+     * @return The declaring classes.
+     */
+    public Set<Class<?>> getTypesWithMethodsAnnotatedWith(Class<? extends Annotation> annotation) {
+        Set<Class<?>> types = new LinkedHashSet<>();
+        for (Method method : reflections().getMethodsAnnotatedWith(annotation)) {
+            types.add(method.getDeclaringClass());
+        }
+        return types;
+    }
+
     private Reflections reflections() {
         Reflections result = reflections;
         if (result == null) {
             synchronized (this) {
                 result = reflections;
                 if (result == null) {
+                    FilterBuilder filter = new FilterBuilder().includePackage(packagePrefix);
+                    if (ZETACORE_PACKAGE.startsWith(packagePrefix + ".")) filter.excludePackage(ZETACORE_PACKAGE);
                     result = new Reflections(new ConfigurationBuilder()
                             .forPackage(packagePrefix, classLoader)
                             .addClassLoaders(classLoader)
-                            .filterInputsBy(new FilterBuilder().includePackage(packagePrefix))
-                            .setScanners(Scanners.TypesAnnotated, Scanners.SubTypes));
+                            .filterInputsBy(filter)
+                            .setScanners(Scanners.TypesAnnotated, Scanners.SubTypes, Scanners.MethodsAnnotated));
                     reflections = result;
                 }
             }

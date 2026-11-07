@@ -21,8 +21,9 @@ import java.util.logging.Level;
  * in the plugin's package. Use {@link ZetaPlugin} on the main class to change the defaults, and override
  * {@link #onStartup()} and {@link #onShutdown()} for custom logic.
  * <p>
- * The plugin itself, the {@link ConfigService}, the {@link ServiceRegistry} and the {@link ClassScanner}
- * can be injected into any service.
+ * The plugin itself, the {@link ConfigService}, the {@link ServiceRegistry}, the {@link ClassScanner} and
+ * every {@link com.zetaplugins.zetacore.config.annotation.ConfigFile} class can be injected into any service.
+ * Injected config objects are updated in place by {@link ConfigService#reload()}.
  */
 public abstract class ZetaCorePlugin extends JavaPlugin {
     private ClassScanner classScanner;
@@ -68,6 +69,7 @@ public abstract class ZetaCorePlugin extends JavaPlugin {
         configService = new ConfigService(this);
         serviceRegistry = new ServiceRegistry(this, requireServiceAnnotation, classScanner);
         serviceRegistry.registerInstance(configService);
+        serviceRegistry.addResolver(configService.asResolver());
 
         serviceRegistry.initializeEagerServices();
 

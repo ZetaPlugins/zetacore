@@ -20,6 +20,7 @@ public class ServiceRegistry {
     private final Map<Class<?>, Object> instances = new HashMap<>();
     private final boolean requireServiceAnnotation;
     private final ClassScanner scanner;
+    private final List<InstanceResolver> resolvers = new ArrayList<>();
     private final ThreadLocal<Deque<Class<?>>> creationStack = ThreadLocal.withInitial(ArrayDeque::new);
 
     /**
@@ -54,6 +55,15 @@ public class ServiceRegistry {
         instances.put(JavaPlugin.class, plugin);
         instances.put(ServiceRegistry.class, this);
         instances.put(ClassScanner.class, scanner);
+    }
+
+    /**
+     * Adds a resolver that supplies instances for types the registry cannot create itself.
+     * Resolvers are consulted in the order they were added, before the {@link Service} annotation is checked.
+     * @param resolver The resolver to add.
+     */
+    public void addResolver(InstanceResolver resolver) {
+        resolvers.add(Objects.requireNonNull(resolver, "resolver"));
     }
 
     /**
@@ -110,6 +120,17 @@ public class ServiceRegistry {
     public <T> T getOrCreate(Class<T> cls) {
         Object registered = instances.get(cls);
         if (registered != null) return (T) registered;
+
+        for (InstanceResolver resolver : resolvers) {
+            Object resolved = resolver.resolve(cls);
+            if (resolved == null) continue;
+            if (!cls.isInstance(resolved)) {
+                throw new ServiceException("Resolver returned " + resolved.getClass().getName()
+                        + " for " + cls.getName() + ", which is not an instance of that type");
+            }
+            instances.put(cls, resolved);
+            return (T) resolved;
+        }
 
         requireServiceAnnotation(cls);
 

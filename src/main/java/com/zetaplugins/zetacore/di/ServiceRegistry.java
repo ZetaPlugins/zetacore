@@ -8,6 +8,7 @@ import org.reflections.Reflections;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Modifier;
 import java.util.*;
 
@@ -184,30 +185,124 @@ public class ServiceRegistry {
     }
 
     /**
-     * Creates an instance of the specified class, using a constructor that accepts the plugin if available.
+     * Creates a new, unregistered instance of the specified class with full dependency injection.
+     * <p>
+     * The instance is constructed via constructor injection (see {@link #createInstance(Class)}), then its
+     * {@link Inject}-annotated fields are injected and its {@link PostConstruct} methods are called.
+     * The created object itself is <b>not</b> stored in the registry, which makes this suitable for
+     * objects like commands or listeners that depend on services but aren't services themselves.
+     *
+     * @param cls The class to instantiate.
+     * @return The newly created and injected instance.
+     * @param <T> The type of the instance.
+     */
+    public <T> T create(Class<T> cls) {
+        Deque<Class<?>> stack = creationStack.get();
+        if (stack.contains(cls)) {
+            throw new ServiceException("Circular dependency detected: " + stack + " -> " + cls.getName());
+        }
+        stack.push(cls);
+        try {
+            T obj = createInstance(cls);
+            injectServices(obj);
+            return obj;
+        } finally {
+            stack.pop();
+        }
+    }
+
+    /**
+     * Creates an instance of the specified class using constructor injection.
+     * <p>
+     * The constructor is selected in the following order:
+     * <ol>
+     *     <li>The constructor annotated with {@link Inject} (at most one is allowed)</li>
+     *     <li>A constructor whose only parameter accepts the plugin instance</li>
+     *     <li>The no-argument constructor</li>
+     *     <li>The only declared constructor, if the class has exactly one</li>
+     * </ol>
+     * Each constructor parameter is resolved like an {@link Inject} field: the plugin if the type accepts it,
+     * otherwise a service from the registry.
+     *
      * @param cls The class to create an instance of.
      * @return The newly created instance.
      * @param <T> The type of the instance.
      */
     private <T> T createInstance(Class<T> cls) {
+        Constructor<?> constructor = selectConstructor(cls);
+        Object[] args = resolveConstructorArguments(constructor);
         try {
-            for (Constructor<?> constructor : cls.getDeclaredConstructors()) {
-                Class<?>[] params = constructor.getParameterTypes();
-                if (params.length == 1 && (params[0].isAssignableFrom(plugin.getClass()) || params[0].isAssignableFrom(JavaPlugin.class))) {
-                    constructor.setAccessible(true);
-                    Object obj = constructor.newInstance(plugin);
-                    return cls.cast(obj);
-                }
-            }
-            Constructor<T> noArg = cls.getDeclaredConstructor();
-            noArg.setAccessible(true);
-            return noArg.newInstance();
-        } catch (NoSuchMethodException e) {
-            throw new ServiceException("Failed to create instance of " + cls.getName()
-                    + ". The class must have either a no-argument constructor or a constructor that accepts the plugin instance.", e);
+            constructor.setAccessible(true);
+            return cls.cast(constructor.newInstance(args));
+        } catch (InvocationTargetException e) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            throw new ServiceException("Constructor of " + cls.getName() + " threw an exception", cause);
         } catch (Exception e) {
             throw new ServiceException("Failed to create instance of " + cls.getName(), e);
         }
+    }
+
+    /**
+     * Selects the constructor to use for creating an instance of the given class.
+     * @param cls The class to select a constructor for.
+     * @return The selected constructor.
+     */
+    private Constructor<?> selectConstructor(Class<?> cls) {
+        Constructor<?>[] constructors = cls.getDeclaredConstructors();
+
+        List<Constructor<?>> annotated = Arrays.stream(constructors)
+                .filter(c -> c.isAnnotationPresent(Inject.class))
+                .toList();
+        if (annotated.size() > 1) {
+            throw new ServiceException("Class " + cls.getName() + " has multiple @Inject constructors. Only one is allowed.");
+        }
+        if (annotated.size() == 1) return annotated.get(0);
+
+        for (Constructor<?> constructor : constructors) {
+            Class<?>[] params = constructor.getParameterTypes();
+            if (params.length == 1 && isPluginType(params[0])) return constructor;
+        }
+
+        for (Constructor<?> constructor : constructors) {
+            if (constructor.getParameterCount() == 0) return constructor;
+        }
+
+        if (constructors.length == 1) return constructors[0];
+
+        throw new ServiceException("Failed to create instance of " + cls.getName()
+                + ". No suitable constructor found: annotate the constructor to use with @Inject, or provide a "
+                + "no-argument constructor or a constructor that accepts the plugin instance.");
+    }
+
+    /**
+     * Resolves the arguments for the given constructor from the registry.
+     * @param constructor The constructor to resolve arguments for.
+     * @return The resolved arguments.
+     */
+    private Object[] resolveConstructorArguments(Constructor<?> constructor) {
+        Class<?>[] paramTypes = constructor.getParameterTypes();
+        Object[] args = new Object[paramTypes.length];
+        for (int i = 0; i < paramTypes.length; i++) {
+            Class<?> type = paramTypes[i];
+            if (isPluginType(type)) {
+                args[i] = plugin;
+            } else if (type.isPrimitive()) {
+                throw new ServiceException("Cannot inject primitive parameter of type " + type.getName()
+                        + " into constructor of " + constructor.getDeclaringClass().getName());
+            } else {
+                args[i] = getOrCreate(type);
+            }
+        }
+        return args;
+    }
+
+    /**
+     * Checks whether the plugin instance can be supplied for the given type.
+     * @param type The type to check.
+     * @return True if the type is a plugin type that accepts the plugin instance.
+     */
+    private boolean isPluginType(Class<?> type) {
+        return type != Object.class && type.isInstance(plugin);
     }
 
     /**

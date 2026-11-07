@@ -72,20 +72,22 @@ public class AutoEventListenerRegistrar implements EventListenerRegistrar {
         try {
             Listener listener;
 
-            try { // Try constructor with plugin parameter first
-                Constructor<?> constructor = listenerClass.getConstructor(plugin.getClass());
-                listener = (Listener) constructor.newInstance(plugin);
-            } catch (NoSuchMethodException e) {
-                try {
-                    Constructor<?> constructor = listenerClass.getConstructor();
-                    listener = (Listener) constructor.newInstance();
-                } catch (NoSuchMethodException ex) {
-                    plugin.getLogger().severe("No suitable constructor found for listener: " + listenerClass.getSimpleName());
-                    return null;
+            if (serviceRegistry != null) {
+                listener = (Listener) serviceRegistry.create(listenerClass);
+            } else {
+                try { // Try constructor with plugin parameter first
+                    Constructor<?> constructor = listenerClass.getConstructor(plugin.getClass());
+                    listener = (Listener) constructor.newInstance(plugin);
+                } catch (NoSuchMethodException e) {
+                    try {
+                        Constructor<?> constructor = listenerClass.getConstructor();
+                        listener = (Listener) constructor.newInstance();
+                    } catch (NoSuchMethodException ex) {
+                        plugin.getLogger().severe("No suitable constructor found for listener: " + listenerClass.getSimpleName());
+                        return null;
+                    }
                 }
             }
-
-            if (serviceRegistry != null) serviceRegistry.injectServices(listener);
 
             plugin.getServer().getPluginManager().registerEvents(listener, plugin);
 

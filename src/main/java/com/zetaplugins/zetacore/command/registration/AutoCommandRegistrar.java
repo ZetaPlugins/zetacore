@@ -144,6 +144,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
      */
     private TabCompleter createTabCompleter(Class<?> completerClass) {
         try {
+            if (serviceRegistry != null) return (TabCompleter) serviceRegistry.create(completerClass);
             try {
                 Constructor<?> constructor = completerClass.getConstructor(plugin.getClass());
                 return (TabCompleter) constructor.newInstance(plugin);
@@ -192,20 +193,22 @@ public class AutoCommandRegistrar implements CommandRegistrar {
             if (commandsToRegister.isEmpty()) return result;
 
             CommandExecutor executor;
-            try {
-                Constructor<?> constructor = commandClass.getConstructor(plugin.getClass());
-                executor = (CommandExecutor) constructor.newInstance(plugin);
-            } catch (NoSuchMethodException e) {
+            if (serviceRegistry != null) {
+                executor = (CommandExecutor) serviceRegistry.create(commandClass);
+            } else {
                 try {
-                    Constructor<?> constructor = commandClass.getConstructor();
-                    executor = (CommandExecutor) constructor.newInstance();
-                } catch (NoSuchMethodException ex) {
-                    plugin.getLogger().severe("No suitable constructor found for command class: " + commandClass.getSimpleName());
-                    return null;
+                    Constructor<?> constructor = commandClass.getConstructor(plugin.getClass());
+                    executor = (CommandExecutor) constructor.newInstance(plugin);
+                } catch (NoSuchMethodException e) {
+                    try {
+                        Constructor<?> constructor = commandClass.getConstructor();
+                        executor = (CommandExecutor) constructor.newInstance();
+                    } catch (NoSuchMethodException ex) {
+                        plugin.getLogger().severe("No suitable constructor found for command class: " + commandClass.getSimpleName());
+                        return null;
+                    }
                 }
             }
-
-            injectServices(executor);
 
             for (var registerableCommand : commandsToRegister) {
                 TabCompleter tabCompleter =

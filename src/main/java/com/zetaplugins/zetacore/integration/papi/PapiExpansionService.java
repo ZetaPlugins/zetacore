@@ -124,6 +124,14 @@ public class PapiExpansionService {
         return this;
     }
 
+    /**
+     * Gets the number of placeholders, including pattern placeholders.
+     * @return The total number of placeholders
+     */
+    public int getPlaceholderCount() {
+        return placeholders.size() + patternPlaceholders.size();
+    }
+
     public Map<String, PlaceholderFunction> getPlaceholders() {
         return placeholders;
     }

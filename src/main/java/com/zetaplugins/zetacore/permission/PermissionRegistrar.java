@@ -1,5 +1,6 @@
 package com.zetaplugins.zetacore.permission;
 
+import com.zetaplugins.zetacore.scan.ClassScanner;
 import org.bukkit.Bukkit;
 import org.bukkit.permissions.Permission;
 
@@ -9,8 +10,10 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Utility for collecting and registering permission constants from classes.
@@ -78,6 +81,19 @@ public final class PermissionRegistrar {
         }
 
         return new ArrayList<>(byValue.values());
+    }
+
+    /**
+     * Collects all static {@link PermissionNode} fields from the classes found by the scanner:
+     * types implementing {@link PermissionNode} (such as permission enums) and classes annotated with {@link PermissionHolder}.
+     *
+     * @param scanner The scanner for the plugin's package.
+     * @return Collected permission nodes (deduplicated by value).
+     */
+    public static List<PermissionNode> discover(ClassScanner scanner) {
+        Set<Class<?>> holders = new LinkedHashSet<>(scanner.getSubTypesOf(PermissionNode.class));
+        holders.addAll(scanner.getTypesAnnotatedWith(PermissionHolder.class));
+        return collectFromClasses(holders);
     }
 
     /**

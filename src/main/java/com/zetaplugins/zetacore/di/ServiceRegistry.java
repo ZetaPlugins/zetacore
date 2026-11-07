@@ -1,24 +1,42 @@
 package com.zetaplugins.zetacore.di;
 
+import com.zetaplugins.zetacore.di.annotation.Bean;
+import com.zetaplugins.zetacore.di.annotation.Configuration;
 import com.zetaplugins.zetacore.di.annotation.Inject;
 import com.zetaplugins.zetacore.di.annotation.Service;
 import com.zetaplugins.zetacore.di.annotation.PostConstruct;
+import com.zetaplugins.zetacore.di.annotation.PreDestroy;
+import com.zetaplugins.zetacore.di.condition.ConditionEvaluator;
+import com.zetaplugins.zetacore.scan.ClassScanner;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.reflections.Reflections;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * A registry for managing and injecting service instances.
+ * <p>
+ * Besides services and beans, the registry always provides the plugin itself (as {@link JavaPlugin},
+ * any supertype or the plugin's own class), the plugin's {@link Logger}, the registry itself and its {@link ClassScanner}.
  */
 public class ServiceRegistry {
     private final JavaPlugin plugin;
     private final Map<Class<?>, Object> instances = new HashMap<>();
     private final boolean requireServiceAnnotation;
-    private final String packagePrefix;
+    private final ClassScanner scanner;
+    private final List<InstanceResolver> resolvers = new ArrayList<>();
+    private final Map<Class<?>, BeanDefinition> beanDefinitions = new LinkedHashMap<>();
+    private final Set<Class<?>> configurationClasses = new HashSet<>();
+    private final ConditionEvaluator conditions;
+    private final List<Object> managedObjects = new ArrayList<>();
+    private final Set<Object> managedObjectSet = Collections.newSetFromMap(new IdentityHashMap<>());
     private final ThreadLocal<Deque<Class<?>>> creationStack = ThreadLocal.withInitial(ArrayDeque::new);
 
     /**
@@ -26,39 +44,175 @@ public class ServiceRegistry {
      * @param plugin The main plugin instance.
      */
     public ServiceRegistry(JavaPlugin plugin) {
-        this.plugin = plugin;
-        instances.put(plugin.getClass(), plugin);
-        instances.put(JavaPlugin.class, plugin);
-        this.requireServiceAnnotation = false;
-        this.packagePrefix = plugin.getClass().getPackageName();
+        this(plugin, false, plugin.getClass().getPackageName());
     }
 
     /**
      * Creates a new ServiceRegistry for the given plugin.
      * @param plugin The main plugin instance.
      * @param requireServiceAnnotation Whether to require the {@link Service} annotation on managed classes.
+     * @param packagePrefix The package to scan for services.
      */
     public ServiceRegistry(JavaPlugin plugin, boolean requireServiceAnnotation, String packagePrefix) {
-        this.plugin = plugin;
-        instances.put(plugin.getClass(), plugin);
-        instances.put(JavaPlugin.class, plugin);
-        this.requireServiceAnnotation = requireServiceAnnotation;
-        this.packagePrefix = packagePrefix;
+        this(plugin, requireServiceAnnotation, new ClassScanner(packagePrefix, plugin.getClass().getClassLoader()));
     }
 
     /**
-     * Initializes and registers all eagerly loaded singleton services found in the specified package.
+     * Creates a new ServiceRegistry for the given plugin that uses an existing scanner.
+     * @param plugin The main plugin instance.
+     * @param requireServiceAnnotation Whether to require the {@link Service} annotation on managed classes.
+     * @param scanner The scanner used to discover services.
+     */
+    public ServiceRegistry(JavaPlugin plugin, boolean requireServiceAnnotation, ClassScanner scanner) {
+        this.plugin = plugin;
+        this.requireServiceAnnotation = requireServiceAnnotation;
+        this.scanner = scanner;
+        this.conditions = new ConditionEvaluator(plugin, this);
+        instances.put(plugin.getClass(), plugin);
+        instances.put(JavaPlugin.class, plugin);
+        instances.put(ServiceRegistry.class, this);
+        instances.put(ClassScanner.class, scanner);
+    }
+
+    /**
+     * Adds a resolver that supplies instances for types the registry cannot create itself.
+     * Resolvers are consulted in the order they were added, before the {@link Service} annotation is checked.
+     * @param resolver The resolver to add.
+     */
+    public void addResolver(InstanceResolver resolver) {
+        resolvers.add(Objects.requireNonNull(resolver, "resolver"));
+    }
+
+    /**
+     * Gets the evaluator for conditions on services, beans, commands and listeners.
+     * @return The condition evaluator.
+     */
+    public ConditionEvaluator getConditionEvaluator() {
+        return conditions;
+    }
+
+    /**
+     * Gets the scanner this registry uses to discover services.
+     * @return The class scanner.
+     */
+    public ClassScanner getClassScanner() {
+        return scanner;
+    }
+
+    /**
+     * Initializes all eagerly loaded singleton services found in the specified package
+     * and all registered {@link Bean}s marked as eagerly loaded.
      */
     public void initializeEagerServices() {
-        Reflections reflections = new Reflections(packagePrefix);
-        Set<Class<?>> annotatedClasses = reflections.getTypesAnnotatedWith(Service.class);
+        Set<Class<?>> annotatedClasses = scanner.getTypesAnnotatedWith(Service.class);
 
         for (Class<?> cls : annotatedClasses) {
             ServiceOptions options = getServiceOptions(cls);
-            if (options.eagerlyLoad() && options.scope() == ServiceScope.SINGLETON) {
+            if (options.eagerlyLoad() && options.scope() == ServiceScope.SINGLETON && conditions.matches(cls)) {
                 getOrCreate(cls);
             }
         }
+
+        for (BeanDefinition bean : List.copyOf(beanDefinitions.values())) {
+            if (bean.eager()) getOrCreate(bean.type());
+        }
+    }
+
+    /**
+     * Registers the {@link Bean} methods of all {@link Configuration} classes found in the scanned package.
+     * Beans are created lazily, or by {@link #initializeEagerServices()} if marked as eagerly loaded.
+     * @throws ServiceException If a bean's type is already provided by another bean, a service or a registered instance.
+     */
+    public void registerConfigurations() {
+        for (Class<?> cls : scanner.getTypesAnnotatedWith(Configuration.class)) {
+            if (cls.isAnnotationPresent(Configuration.class)) registerConfiguration(cls);
+        }
+    }
+
+    /**
+     * Registers the {@link Bean} methods of a single configuration class. Registering the same class twice has no effect.
+     * @param configurationClass The class declaring the bean methods.
+     * @throws ServiceException If a bean method is invalid or its type is already provided elsewhere.
+     */
+    public void registerConfiguration(Class<?> configurationClass) {
+        if (!configurationClasses.add(configurationClass)) return;
+        if (!conditions.matches(configurationClass)) return;
+
+        for (Method method : configurationClass.getDeclaredMethods()) {
+            if (!method.isAnnotationPresent(Bean.class)) continue;
+            if (!conditions.matches(method)) continue;
+
+            BeanDefinition bean = new BeanDefinition(method.getReturnType(), method, method.getAnnotation(Bean.class).eagerlyLoad());
+            if (bean.type() == void.class || bean.type().isPrimitive()) {
+                throw new ServiceException(bean.describe() + " must return an object type");
+            }
+            String existing = findProvider(bean.type());
+            if (existing != null) {
+                throw new ServiceException("Multiple providers for " + bean.type().getName() + ": "
+                        + existing + " and " + bean.describe());
+            }
+            beanDefinitions.put(bean.type(), bean);
+        }
+    }
+
+    private String findProvider(Class<?> type) {
+        if (type == Logger.class) return "the plugin logger";
+        BeanDefinition bean = beanDefinitions.get(type);
+        if (bean != null) return bean.describe();
+        if (instances.containsKey(type)) return "registered instance of " + instances.get(type).getClass().getName();
+        if (type.isAnnotationPresent(Service.class) && conditions.matches(type)) return "@Service " + type.getName();
+        for (Class<?> service : scanner.getTypesAnnotatedWith(Service.class)) {
+            Service annotation = service.getAnnotation(Service.class);
+            if (annotation == null) continue;
+            for (Class<?> bind : annotation.binds()) {
+                if (bind == type && conditions.matches(service)) {
+                    return "@Service(binds = " + type.getSimpleName() + ".class) " + service.getName();
+                }
+            }
+        }
+        return null;
+    }
+
+    private Object createBean(BeanDefinition bean) {
+        Deque<Class<?>> stack = creationStack.get();
+        if (stack.contains(bean.type())) {
+            throw new ServiceException("Circular dependency detected: " + stack + " -> " + bean.type().getName());
+        }
+        stack.push(bean.type());
+        try {
+            Method method = bean.method();
+            Object owner = Modifier.isStatic(method.getModifiers()) ? null : getOrCreateConfiguration(method.getDeclaringClass());
+            Object[] args = resolveArguments(method);
+
+            Object result;
+            try {
+                method.setAccessible(true);
+                result = method.invoke(owner, args);
+            } catch (InvocationTargetException e) {
+                throw new ServiceException(bean.describe() + " threw an exception", e.getCause() != null ? e.getCause() : e);
+            } catch (IllegalAccessException e) {
+                throw new ServiceException("Failed to invoke " + bean.describe(), e);
+            }
+            if (result == null) throw new ServiceException(bean.describe() + " returned null");
+
+            boolean alreadyManaged = instances.values().stream().anyMatch(v -> v == result);
+            instances.put(bean.type(), result);
+            if (!alreadyManaged) {
+                injectServices(result);
+                track(result);
+            }
+            return result;
+        } finally {
+            stack.pop();
+        }
+    }
+
+    private Object getOrCreateConfiguration(Class<?> configurationClass) {
+        Object existing = instances.get(configurationClass);
+        if (existing != null) return existing;
+        Object created = create(configurationClass);
+        instances.put(configurationClass, created);
+        return created;
     }
 
     /**
@@ -67,9 +221,11 @@ public class ServiceRegistry {
      */
     public void registerInstance(Object instance) {
         requireServiceAnnotation(instance.getClass());
+        requireNoBean(instance.getClass());
         injectServices(instance);
         instances.put(instance.getClass(), instance);
         registerBindings(instance.getClass(), instance);
+        track(instance);
     }
 
     /**
@@ -79,8 +235,10 @@ public class ServiceRegistry {
      */
     public void registerInstance(Class<?> cls, Object instance) {
         requireServiceAnnotation(cls);
+        requireNoBean(cls);
         injectServices(instance);
         instances.put(cls, instance);
+        track(instance);
     }
 
     /**
@@ -91,7 +249,31 @@ public class ServiceRegistry {
      */
     @SuppressWarnings("unchecked")
     public <T> T getOrCreate(Class<T> cls) {
+        if (cls == Logger.class) return (T) plugin.getLogger();
+
+        Object registered = instances.get(cls);
+        if (registered != null) return (T) registered;
+
+        BeanDefinition bean = beanDefinitions.get(cls);
+        if (bean != null) return (T) createBean(bean);
+
+        for (InstanceResolver resolver : resolvers) {
+            Object resolved = resolver.resolve(cls);
+            if (resolved == null) continue;
+            if (!cls.isInstance(resolved)) {
+                throw new ServiceException("Resolver returned " + resolved.getClass().getName()
+                        + " for " + cls.getName() + ", which is not an instance of that type");
+            }
+            instances.put(cls, resolved);
+            return (T) resolved;
+        }
+
         requireServiceAnnotation(cls);
+
+        String failedCondition = conditions.findFailedCondition(cls);
+        if (failedCondition != null) {
+            throw new ServiceException(cls.getName() + " is inactive because " + failedCondition + " is not met");
+        }
 
         Deque<Class<?>> stack = creationStack.get();
         if (stack.contains(cls)) {
@@ -108,13 +290,15 @@ public class ServiceRegistry {
                 }
             }
 
-            Object existing = instances.get(cls);
-            if (existing != null) return (T) existing;
-
             // If the requested type is an interface or abstract class, try to discover a concrete implementation
             Class<T> resolvedClass = cls;
             if (cls.isInterface() || Modifier.isAbstract(cls.getModifiers())) {
                 resolvedClass = discoverImplementation(cls);
+                Object impl = instances.get(resolvedClass);
+                if (impl != null) {
+                    instances.put(cls, impl);
+                    return (T) impl;
+                }
             }
 
             T obj = createInstance(resolvedClass);
@@ -124,10 +308,54 @@ public class ServiceRegistry {
             }
             registerBindings(resolvedClass, obj);
             injectServices(obj);
+            track(obj);
             return obj;
         } finally {
             stack.pop();
         }
+    }
+
+    /**
+     * Gets all active providers of the given type: registered instances, {@link Bean}s whose declared type is
+     * assignable to it and active singleton {@link Service} classes that implement it. Each provider is created if needed.
+     * <p>
+     * Useful for optional extension points such as customizers, where any number of implementations may exist.
+     * @param type The type to look up.
+     * @return The instances, without duplicates. Empty if there are none.
+     * @param <T> The type.
+     */
+    public <T> List<T> getAll(Class<T> type) {
+        Set<Object> result = Collections.newSetFromMap(new IdentityHashMap<>());
+        List<T> ordered = new ArrayList<>();
+
+        for (Object instance : List.copyOf(instances.values())) {
+            if (type.isInstance(instance) && result.add(instance)) ordered.add(type.cast(instance));
+        }
+        for (BeanDefinition bean : List.copyOf(beanDefinitions.values())) {
+            if (!type.isAssignableFrom(bean.type())) continue;
+            Object instance = getOrCreate(bean.type());
+            if (type.isInstance(instance) && result.add(instance)) ordered.add(type.cast(instance));
+        }
+        for (Class<?> service : scanner.getTypesAnnotatedWith(Service.class)) {
+            if (!type.isAssignableFrom(service) || service.getAnnotation(Service.class) == null) continue;
+            if (service.isInterface() || Modifier.isAbstract(service.getModifiers())) continue;
+            if (getServiceOptions(service).scope() != ServiceScope.SINGLETON || !conditions.matches(service)) continue;
+            Object instance = getOrCreate(service);
+            if (result.add(instance)) ordered.add(type.cast(instance));
+        }
+        return ordered;
+    }
+
+    /**
+     * Gets the number of singleton services, beans and registered instances created so far.
+     * @return The number of distinct singletons.
+     */
+    public int getSingletonCount() {
+        Set<Object> distinct = Collections.newSetFromMap(new IdentityHashMap<>());
+        for (Object instance : instances.values()) {
+            if (managedObjectSet.contains(instance)) distinct.add(instance);
+        }
+        return distinct.size();
     }
 
     /**
@@ -143,15 +371,19 @@ public class ServiceRegistry {
      */
     @SuppressWarnings("unchecked")
     private <T> Class<T> discoverImplementation(Class<T> type) {
-        Reflections reflections = new Reflections(packagePrefix);
-        List<Class<?>> serviceCandidates = reflections.getSubTypesOf(type).stream()
+        List<Class<?>> serviceCandidates = scanner.getSubTypesOf(type).stream()
                 .<Class<?>>map(c -> c)
                 .filter(c -> c.isAnnotationPresent(Service.class))
                 .filter(c -> !c.isInterface() && !Modifier.isAbstract(c.getModifiers()))
                 .toList();
 
+        List<Class<?>> inactive = serviceCandidates.stream().filter(c -> !conditions.matches(c)).toList();
+        serviceCandidates = serviceCandidates.stream().filter(c -> !inactive.contains(c)).toList();
+
         if (serviceCandidates.isEmpty()) {
-            throw new ServiceException("No @Service implementation found for " + type.getName());
+            String suffix = inactive.isEmpty() ? "" : " (inactive due to conditions: "
+                    + inactive.stream().map(Class::getName).reduce((a, b) -> a + ", " + b).orElse("") + ")";
+            throw new ServiceException("No active @Service implementation found for " + type.getName() + suffix);
         }
 
         if (serviceCandidates.size() == 1) {
@@ -184,30 +416,186 @@ public class ServiceRegistry {
     }
 
     /**
-     * Creates an instance of the specified class, using a constructor that accepts the plugin if available.
+     * Creates a new, unregistered instance of the specified class with full dependency injection.
+     * <p>
+     * The instance is constructed via constructor injection (see {@link #createInstance(Class)}), then its
+     * {@link Inject}-annotated fields are injected and its {@link PostConstruct} methods are called.
+     * The created object itself is <b>not</b> stored in the registry, which makes this suitable for
+     * objects like commands or listeners that depend on services but aren't services themselves.
+     *
+     * @param cls The class to instantiate.
+     * @return The newly created and injected instance.
+     * @param <T> The type of the instance.
+     */
+    public <T> T create(Class<T> cls) {
+        Deque<Class<?>> stack = creationStack.get();
+        if (stack.contains(cls)) {
+            throw new ServiceException("Circular dependency detected: " + stack + " -> " + cls.getName());
+        }
+        stack.push(cls);
+        try {
+            T obj = createInstance(cls);
+            injectServices(obj);
+            track(obj);
+            return obj;
+        } finally {
+            stack.pop();
+        }
+    }
+
+    /**
+     * Destroys all managed objects in reverse creation order.
+     * <p>
+     * For each object, its {@link PreDestroy} methods are called, then {@link AutoCloseable#close()} if the object
+     * implements it and {@code close()} is not itself annotated with {@link PreDestroy}. Prototype services are not managed.
+     * Errors are logged and do not stop the remaining objects from being destroyed. Calling this again has no effect
+     * unless new objects were created in the meantime.
+     */
+    public void shutdown() {
+        List<Object> objects = new ArrayList<>(managedObjects);
+        managedObjects.clear();
+        managedObjectSet.clear();
+        Collections.reverse(objects);
+        for (Object object : objects) {
+            destroy(object);
+        }
+    }
+
+    private void track(Object object) {
+        if (managedObjectSet.add(object)) managedObjects.add(object);
+    }
+
+    private void destroy(Object target) {
+        boolean closeCalled = false;
+        Class<?> cls = target.getClass();
+        while (cls != null && cls != Object.class) {
+            for (Method method : cls.getDeclaredMethods()) {
+                if (!method.isAnnotationPresent(PreDestroy.class)) continue;
+                String name = cls.getName() + "#" + method.getName();
+                if (method.getParameterCount() != 0) {
+                    logShutdownError("@PreDestroy method " + name + " must have no parameters", null);
+                    continue;
+                }
+                if (method.getName().equals("close")) closeCalled = true;
+                try {
+                    method.setAccessible(true);
+                    method.invoke(target);
+                } catch (InvocationTargetException e) {
+                    logShutdownError("@PreDestroy method " + name + " threw an exception", e.getCause());
+                } catch (Exception | LinkageError e) {
+                    logShutdownError("Failed to execute @PreDestroy method " + name, e);
+                }
+            }
+            cls = cls.getSuperclass();
+        }
+
+        if (target instanceof AutoCloseable closeable && !closeCalled) {
+            try {
+                closeable.close();
+            } catch (Exception | LinkageError e) {
+                logShutdownError("Failed to close " + target.getClass().getName(), e);
+            }
+        }
+    }
+
+    private void logShutdownError(String message, Throwable cause) {
+        Logger logger = plugin.getLogger();
+        if (logger == null) logger = Logger.getLogger(ServiceRegistry.class.getName());
+        logger.log(Level.SEVERE, message, cause);
+    }
+
+    /**
+     * Creates an instance of the specified class using constructor injection.
+     * <p>
+     * The constructor is selected in the following order:
+     * <ol>
+     *     <li>The constructor annotated with {@link Inject} (at most one is allowed)</li>
+     *     <li>A constructor whose only parameter accepts the plugin instance</li>
+     *     <li>The no-argument constructor</li>
+     *     <li>The only declared constructor, if the class has exactly one</li>
+     * </ol>
+     * Each constructor parameter is resolved like an {@link Inject} field: the plugin if the type accepts it,
+     * otherwise a service from the registry.
+     *
      * @param cls The class to create an instance of.
      * @return The newly created instance.
      * @param <T> The type of the instance.
      */
     private <T> T createInstance(Class<T> cls) {
+        Constructor<?> constructor = selectConstructor(cls);
+        Object[] args = resolveArguments(constructor);
         try {
-            for (Constructor<?> constructor : cls.getDeclaredConstructors()) {
-                Class<?>[] params = constructor.getParameterTypes();
-                if (params.length == 1 && (params[0].isAssignableFrom(plugin.getClass()) || params[0].isAssignableFrom(JavaPlugin.class))) {
-                    constructor.setAccessible(true);
-                    Object obj = constructor.newInstance(plugin);
-                    return cls.cast(obj);
-                }
-            }
-            Constructor<T> noArg = cls.getDeclaredConstructor();
-            noArg.setAccessible(true);
-            return noArg.newInstance();
-        } catch (NoSuchMethodException e) {
-            throw new ServiceException("Failed to create instance of " + cls.getName()
-                    + ". The class must have either a no-argument constructor or a constructor that accepts the plugin instance.", e);
+            constructor.setAccessible(true);
+            return cls.cast(constructor.newInstance(args));
+        } catch (InvocationTargetException e) {
+            Throwable cause = e.getCause() != null ? e.getCause() : e;
+            throw new ServiceException("Constructor of " + cls.getName() + " threw an exception", cause);
         } catch (Exception e) {
             throw new ServiceException("Failed to create instance of " + cls.getName(), e);
         }
+    }
+
+    /**
+     * Selects the constructor to use for creating an instance of the given class.
+     * @param cls The class to select a constructor for.
+     * @return The selected constructor.
+     */
+    private Constructor<?> selectConstructor(Class<?> cls) {
+        Constructor<?>[] constructors = cls.getDeclaredConstructors();
+
+        List<Constructor<?>> annotated = Arrays.stream(constructors)
+                .filter(c -> c.isAnnotationPresent(Inject.class))
+                .toList();
+        if (annotated.size() > 1) {
+            throw new ServiceException("Class " + cls.getName() + " has multiple @Inject constructors. Only one is allowed.");
+        }
+        if (annotated.size() == 1) return annotated.get(0);
+
+        for (Constructor<?> constructor : constructors) {
+            Class<?>[] params = constructor.getParameterTypes();
+            if (params.length == 1 && isPluginType(params[0])) return constructor;
+        }
+
+        for (Constructor<?> constructor : constructors) {
+            if (constructor.getParameterCount() == 0) return constructor;
+        }
+
+        if (constructors.length == 1) return constructors[0];
+
+        throw new ServiceException("Failed to create instance of " + cls.getName()
+                + ". No suitable constructor found: annotate the constructor to use with @Inject, or provide a "
+                + "no-argument constructor or a constructor that accepts the plugin instance.");
+    }
+
+    /**
+     * Resolves the arguments for the given constructor or method from the registry.
+     * @param executable The constructor or method to resolve arguments for.
+     * @return The resolved arguments.
+     */
+    private Object[] resolveArguments(Executable executable) {
+        Class<?>[] paramTypes = executable.getParameterTypes();
+        Object[] args = new Object[paramTypes.length];
+        for (int i = 0; i < paramTypes.length; i++) {
+            Class<?> type = paramTypes[i];
+            if (isPluginType(type)) {
+                args[i] = plugin;
+            } else if (type.isPrimitive()) {
+                throw new ServiceException("Cannot inject primitive parameter of type " + type.getName()
+                        + " into " + executable.getDeclaringClass().getName() + "#" + executable.getName());
+            } else {
+                args[i] = getOrCreate(type);
+            }
+        }
+        return args;
+    }
+
+    /**
+     * Checks whether the plugin instance can be supplied for the given type.
+     * @param type The type to check.
+     * @return True if the type is a plugin type that accepts the plugin instance.
+     */
+    private boolean isPluginType(Class<?> type) {
+        return type != Object.class && type.isInstance(plugin);
     }
 
     /**
@@ -236,7 +624,7 @@ public class ServiceRegistry {
 
         try {
             field.setAccessible(true);
-            if (JavaPlugin.class.isAssignableFrom(field.getType())) {
+            if (isPluginType(field.getType())) {
                 field.set(target, plugin);
             } else {
                 field.set(target, getOrCreate(field.getType()));
@@ -286,6 +674,22 @@ public class ServiceRegistry {
         }
     }
 
+    private void requireNoBean(Class<?> cls) {
+        if (cls == Logger.class) {
+            throw new ServiceException("Cannot register an instance of " + Logger.class.getName() + ": it is always the plugin logger");
+        }
+        BeanDefinition bean = beanDefinitions.get(cls);
+        if (bean != null) {
+            throw new ServiceException("Cannot register an instance of " + cls.getName() + ": it is provided by " + bean.describe());
+        }
+    }
+
+    private record BeanDefinition(Class<?> type, Method method, boolean eager) {
+        String describe() {
+            return "@Bean " + method.getDeclaringClass().getName() + "#" + method.getName() + "()";
+        }
+    }
+
     private void requireServiceAnnotation(Class<?> cls) {
         if (!requireServiceAnnotation) return;
         if (cls.isAnnotationPresent(Service.class)) return;
@@ -319,6 +723,7 @@ public class ServiceRegistry {
         private JavaPlugin plugin;
         private boolean requireServiceAnnotation = false;
         private String packagePrefix;
+        private ClassScanner scanner;
 
         public Builder withPlugin(JavaPlugin plugin) {
             this.plugin = plugin;
@@ -336,8 +741,19 @@ public class ServiceRegistry {
             return this;
         }
 
+        /**
+         * Uses an existing scanner instead of creating one from the package prefix.
+         * @param scanner The scanner to use.
+         * @return This builder.
+         */
+        public Builder withClassScanner(ClassScanner scanner) {
+            this.scanner = scanner;
+            return this;
+        }
+
         public ServiceRegistry build() {
             if (plugin == null) throw new IllegalStateException("Plugin must be set before building ServiceRegistry.");
+            if (scanner != null) return new ServiceRegistry(plugin, requireServiceAnnotation, scanner);
             if (packagePrefix == null) throw new IllegalStateException("Package prefix must be set before building ServiceRegistry.");
             return new ServiceRegistry(plugin, requireServiceAnnotation, packagePrefix);
         }

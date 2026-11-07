@@ -2,9 +2,10 @@ package com.zetaplugins.zetacore.event.registration;
 
 import com.zetaplugins.zetacore.event.annotation.EventListener;
 import com.zetaplugins.zetacore.di.ServiceRegistry;
+import com.zetaplugins.zetacore.di.condition.ConditionEvaluator;
+import com.zetaplugins.zetacore.scan.ClassScanner;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.reflections.Reflections;
 
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
@@ -18,17 +19,16 @@ import java.util.logging.Level;
  */
 public class AutoEventListenerRegistrar implements EventListenerRegistrar {
     private final JavaPlugin plugin;
-    private final String packagePrefix;
+    private final ClassScanner scanner;
     private final ServiceRegistry serviceRegistry;
+    private final ConditionEvaluator conditions;
 
     /**
      * @param plugin The JavaPlugin instance.
      * @param packagePrefix The package prefix to scan for annotated classes.
      */
     public AutoEventListenerRegistrar(JavaPlugin plugin, String packagePrefix) {
-        this.plugin = plugin;
-        this.packagePrefix = packagePrefix;
-        this.serviceRegistry = null;
+        this(plugin, packagePrefix, null);
     }
 
     /**
@@ -37,9 +37,21 @@ public class AutoEventListenerRegistrar implements EventListenerRegistrar {
      * @param serviceRegistry The ServiceRegistry for dependency injection.
      */
     public AutoEventListenerRegistrar(JavaPlugin plugin, String packagePrefix, ServiceRegistry serviceRegistry) {
+        this(plugin, new ClassScanner(packagePrefix, plugin.getClass().getClassLoader()), serviceRegistry);
+    }
+
+    /**
+     * @param plugin The JavaPlugin instance.
+     * @param scanner The scanner used to find annotated classes.
+     * @param serviceRegistry The ServiceRegistry for dependency injection, or null.
+     */
+    public AutoEventListenerRegistrar(JavaPlugin plugin, ClassScanner scanner, ServiceRegistry serviceRegistry) {
         this.plugin = plugin;
-        this.packagePrefix = packagePrefix;
+        this.scanner = scanner;
         this.serviceRegistry = serviceRegistry;
+        this.conditions = serviceRegistry != null
+                ? serviceRegistry.getConditionEvaluator()
+                : new ConditionEvaluator(plugin, null);
     }
 
     /**
@@ -48,12 +60,11 @@ public class AutoEventListenerRegistrar implements EventListenerRegistrar {
      */
     @Override
     public List<String> registerAllListeners() {
-        Reflections reflections = new Reflections(packagePrefix);
-        Set<Class<?>> annotatedClasses = reflections.getTypesAnnotatedWith(EventListener.class);
+        Set<Class<?>> annotatedClasses = scanner.getTypesAnnotatedWith(EventListener.class);
         List<String> registeredListeners = new ArrayList<>();
 
         for (Class<?> clazz : annotatedClasses) {
-            if (Listener.class.isAssignableFrom(clazz)) {
+            if (Listener.class.isAssignableFrom(clazz) && conditions.matches(clazz)) {
                 String listenerName = registerListener(clazz);
                 if (listenerName != null) registeredListeners.add(listenerName);
             }
@@ -72,20 +83,22 @@ public class AutoEventListenerRegistrar implements EventListenerRegistrar {
         try {
             Listener listener;
 
-            try { // Try constructor with plugin parameter first
-                Constructor<?> constructor = listenerClass.getConstructor(plugin.getClass());
-                listener = (Listener) constructor.newInstance(plugin);
-            } catch (NoSuchMethodException e) {
-                try {
-                    Constructor<?> constructor = listenerClass.getConstructor();
-                    listener = (Listener) constructor.newInstance();
-                } catch (NoSuchMethodException ex) {
-                    plugin.getLogger().severe("No suitable constructor found for listener: " + listenerClass.getSimpleName());
-                    return null;
+            if (serviceRegistry != null) {
+                listener = (Listener) serviceRegistry.create(listenerClass);
+            } else {
+                try { // Try constructor with plugin parameter first
+                    Constructor<?> constructor = listenerClass.getConstructor(plugin.getClass());
+                    listener = (Listener) constructor.newInstance(plugin);
+                } catch (NoSuchMethodException e) {
+                    try {
+                        Constructor<?> constructor = listenerClass.getConstructor();
+                        listener = (Listener) constructor.newInstance();
+                    } catch (NoSuchMethodException ex) {
+                        plugin.getLogger().severe("No suitable constructor found for listener: " + listenerClass.getSimpleName());
+                        return null;
+                    }
                 }
             }
-
-            if (serviceRegistry != null) serviceRegistry.injectServices(listener);
 
             plugin.getServer().getPluginManager().registerEvents(listener, plugin);
 
@@ -116,6 +129,7 @@ public class AutoEventListenerRegistrar implements EventListenerRegistrar {
         private JavaPlugin plugin;
         private String packagePrefix;
         private ServiceRegistry serviceRegistry;
+        private ClassScanner scanner;
 
         public Builder withPlugin(JavaPlugin plugin) {
             this.plugin = plugin;
@@ -136,10 +150,29 @@ public class AutoEventListenerRegistrar implements EventListenerRegistrar {
          * Builds the AutoEventListenerRegistrar instance.
          * @return The constructed AutoEventListenerRegistrar.
          */
+        /**
+         * Uses an existing scanner instead of creating one from the package prefix.
+         * Defaults to the service registry's scanner if a registry is set.
+         * @param scanner The scanner to use.
+         * @return This builder.
+         */
+        public Builder withClassScanner(ClassScanner scanner) {
+            this.scanner = scanner;
+            return this;
+        }
+
         public AutoEventListenerRegistrar build() {
             if (plugin == null) throw new IllegalStateException("Plugin must be set");
-            if (packagePrefix == null) throw new IllegalStateException("Package prefix must be set");
-            return new AutoEventListenerRegistrar(plugin, packagePrefix, serviceRegistry);
+            ClassScanner resolvedScanner = scanner;
+            if (resolvedScanner == null && serviceRegistry != null
+                    && (packagePrefix == null || packagePrefix.equals(serviceRegistry.getClassScanner().getPackagePrefix()))) {
+                resolvedScanner = serviceRegistry.getClassScanner();
+            }
+            if (resolvedScanner == null) {
+                if (packagePrefix == null) throw new IllegalStateException("Package prefix, class scanner or service registry must be set");
+                resolvedScanner = new ClassScanner(packagePrefix, plugin.getClass().getClassLoader());
+            }
+            return new AutoEventListenerRegistrar(plugin, resolvedScanner, serviceRegistry);
         }
     }
 }

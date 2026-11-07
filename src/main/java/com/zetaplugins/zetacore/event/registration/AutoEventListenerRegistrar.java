@@ -2,6 +2,7 @@ package com.zetaplugins.zetacore.event.registration;
 
 import com.zetaplugins.zetacore.event.annotation.EventListener;
 import com.zetaplugins.zetacore.di.ServiceRegistry;
+import com.zetaplugins.zetacore.di.condition.ConditionEvaluator;
 import com.zetaplugins.zetacore.scan.ClassScanner;
 import org.bukkit.event.Listener;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -20,6 +21,7 @@ public class AutoEventListenerRegistrar implements EventListenerRegistrar {
     private final JavaPlugin plugin;
     private final ClassScanner scanner;
     private final ServiceRegistry serviceRegistry;
+    private final ConditionEvaluator conditions;
 
     /**
      * @param plugin The JavaPlugin instance.
@@ -47,6 +49,9 @@ public class AutoEventListenerRegistrar implements EventListenerRegistrar {
         this.plugin = plugin;
         this.scanner = scanner;
         this.serviceRegistry = serviceRegistry;
+        this.conditions = serviceRegistry != null
+                ? serviceRegistry.getConditionEvaluator()
+                : new ConditionEvaluator(plugin, null);
     }
 
     /**
@@ -59,7 +64,7 @@ public class AutoEventListenerRegistrar implements EventListenerRegistrar {
         List<String> registeredListeners = new ArrayList<>();
 
         for (Class<?> clazz : annotatedClasses) {
-            if (Listener.class.isAssignableFrom(clazz)) {
+            if (Listener.class.isAssignableFrom(clazz) && conditions.matches(clazz)) {
                 String listenerName = registerListener(clazz);
                 if (listenerName != null) registeredListeners.add(listenerName);
             }

@@ -5,6 +5,7 @@ import com.zetaplugins.zetacore.di.annotation.Configuration;
 import com.zetaplugins.zetacore.di.annotation.Inject;
 import com.zetaplugins.zetacore.di.annotation.Service;
 import com.zetaplugins.zetacore.di.annotation.PostConstruct;
+import com.zetaplugins.zetacore.di.condition.ConditionEvaluator;
 import com.zetaplugins.zetacore.scan.ClassScanner;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -31,6 +32,7 @@ public class ServiceRegistry {
     private final List<InstanceResolver> resolvers = new ArrayList<>();
     private final Map<Class<?>, BeanDefinition> beanDefinitions = new LinkedHashMap<>();
     private final Set<Class<?>> configurationClasses = new HashSet<>();
+    private final ConditionEvaluator conditions;
     private final ThreadLocal<Deque<Class<?>>> creationStack = ThreadLocal.withInitial(ArrayDeque::new);
 
     /**
@@ -61,6 +63,7 @@ public class ServiceRegistry {
         this.plugin = plugin;
         this.requireServiceAnnotation = requireServiceAnnotation;
         this.scanner = scanner;
+        this.conditions = new ConditionEvaluator(plugin, this);
         instances.put(plugin.getClass(), plugin);
         instances.put(JavaPlugin.class, plugin);
         instances.put(ServiceRegistry.class, this);
@@ -74,6 +77,14 @@ public class ServiceRegistry {
      */
     public void addResolver(InstanceResolver resolver) {
         resolvers.add(Objects.requireNonNull(resolver, "resolver"));
+    }
+
+    /**
+     * Gets the evaluator for conditions on services, beans, commands and listeners.
+     * @return The condition evaluator.
+     */
+    public ConditionEvaluator getConditionEvaluator() {
+        return conditions;
     }
 
     /**
@@ -93,7 +104,7 @@ public class ServiceRegistry {
 
         for (Class<?> cls : annotatedClasses) {
             ServiceOptions options = getServiceOptions(cls);
-            if (options.eagerlyLoad() && options.scope() == ServiceScope.SINGLETON) {
+            if (options.eagerlyLoad() && options.scope() == ServiceScope.SINGLETON && conditions.matches(cls)) {
                 getOrCreate(cls);
             }
         }
@@ -121,9 +132,11 @@ public class ServiceRegistry {
      */
     public void registerConfiguration(Class<?> configurationClass) {
         if (!configurationClasses.add(configurationClass)) return;
+        if (!conditions.matches(configurationClass)) return;
 
         for (Method method : configurationClass.getDeclaredMethods()) {
             if (!method.isAnnotationPresent(Bean.class)) continue;
+            if (!conditions.matches(method)) continue;
 
             BeanDefinition bean = new BeanDefinition(method.getReturnType(), method, method.getAnnotation(Bean.class).eagerlyLoad());
             if (bean.type() == void.class || bean.type().isPrimitive()) {
@@ -143,10 +156,10 @@ public class ServiceRegistry {
         BeanDefinition bean = beanDefinitions.get(type);
         if (bean != null) return bean.describe();
         if (instances.containsKey(type)) return "registered instance of " + instances.get(type).getClass().getName();
-        if (type.isAnnotationPresent(Service.class)) return "@Service " + type.getName();
+        if (type.isAnnotationPresent(Service.class) && conditions.matches(type)) return "@Service " + type.getName();
         for (Class<?> service : scanner.getTypesAnnotatedWith(Service.class)) {
             Service annotation = service.getAnnotation(Service.class);
-            if (annotation == null) continue;
+            if (annotation == null || !conditions.matches(service)) continue;
             for (Class<?> bind : annotation.binds()) {
                 if (bind == type) return "@Service(binds = " + type.getSimpleName() + ".class) " + service.getName();
             }
@@ -246,6 +259,11 @@ public class ServiceRegistry {
 
         requireServiceAnnotation(cls);
 
+        String failedCondition = conditions.findFailedCondition(cls);
+        if (failedCondition != null) {
+            throw new ServiceException(cls.getName() + " is inactive because " + failedCondition + " is not met");
+        }
+
         Deque<Class<?>> stack = creationStack.get();
         if (stack.contains(cls)) {
             throw new ServiceException("Circular dependency detected: " + stack + " -> " + cls.getName());
@@ -304,8 +322,13 @@ public class ServiceRegistry {
                 .filter(c -> !c.isInterface() && !Modifier.isAbstract(c.getModifiers()))
                 .toList();
 
+        List<Class<?>> inactive = serviceCandidates.stream().filter(c -> !conditions.matches(c)).toList();
+        serviceCandidates = serviceCandidates.stream().filter(c -> !inactive.contains(c)).toList();
+
         if (serviceCandidates.isEmpty()) {
-            throw new ServiceException("No @Service implementation found for " + type.getName());
+            String suffix = inactive.isEmpty() ? "" : " (inactive due to conditions: "
+                    + inactive.stream().map(Class::getName).reduce((a, b) -> a + ", " + b).orElse("") + ")";
+            throw new ServiceException("No active @Service implementation found for " + type.getName() + suffix);
         }
 
         if (serviceCandidates.size() == 1) {

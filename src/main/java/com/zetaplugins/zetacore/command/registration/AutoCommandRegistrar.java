@@ -3,6 +3,7 @@ package com.zetaplugins.zetacore.command.registration;
 import com.zetaplugins.zetacore.command.annotation.Command;
 import com.zetaplugins.zetacore.command.annotation.TabCompleterHandler;
 import com.zetaplugins.zetacore.di.ServiceRegistry;
+import com.zetaplugins.zetacore.di.condition.ConditionEvaluator;
 import com.zetaplugins.zetacore.scan.ClassScanner;
 import org.bukkit.Bukkit;
 import org.bukkit.command.*;
@@ -24,6 +25,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
     private final ClassScanner scanner;
     private final String commandNamespace;
     private final ServiceRegistry serviceRegistry;
+    private final ConditionEvaluator conditions;
 
     /**
      * @param plugin The JavaPlugin instance.
@@ -63,6 +65,9 @@ public class AutoCommandRegistrar implements CommandRegistrar {
         this.scanner = scanner;
         this.commandNamespace = commandNamespace;
         this.serviceRegistry = serviceRegistry;
+        this.conditions = serviceRegistry != null
+                ? serviceRegistry.getConditionEvaluator()
+                : new ConditionEvaluator(plugin, null);
     }
 
     /**
@@ -100,7 +105,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
         Set<Class<?>> tabCompleterClasses = scanner.getTypesAnnotatedWith(TabCompleterHandler.class);
 
         for (Class<?> clazz : tabCompleterClasses) {
-            if (TabCompleter.class.isAssignableFrom(clazz)) {
+            if (TabCompleter.class.isAssignableFrom(clazz) && conditions.matches(clazz)) {
                 TabCompleterHandler annotation = clazz.getAnnotation(TabCompleterHandler.class);
                 TabCompleter completer = createTabCompleter(clazz);
                 if (completer == null) continue;
@@ -136,7 +141,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
         Set<Class<?>> commandClasses = scanner.getTypesAnnotatedWith(Command.class);
 
         for (Class<?> clazz : commandClasses) {
-            if (CommandExecutor.class.isAssignableFrom(clazz)) {
+            if (CommandExecutor.class.isAssignableFrom(clazz) && conditions.matches(clazz)) {
                 List<String> names = registerCommand(clazz, tabCompleters, commandNameFilter);
                 if (names != null && !names.isEmpty()) registeredCommands.addAll(names);
             }

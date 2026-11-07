@@ -39,6 +39,7 @@ public abstract class ZetaCorePlugin extends JavaPlugin {
             started = true;
         } catch (Exception e) {
             getLogger().log(Level.SEVERE, "Failed to enable " + getName() + ", disabling plugin.", e);
+            if (serviceRegistry != null) serviceRegistry.shutdown();
             getServer().getPluginManager().disablePlugin(this);
         }
     }
@@ -52,6 +53,7 @@ public abstract class ZetaCorePlugin extends JavaPlugin {
         } catch (Exception e) {
             getLogger().log(Level.SEVERE, "Error while disabling " + getName(), e);
         }
+        serviceRegistry.shutdown();
     }
 
     private void boot() {
@@ -91,7 +93,8 @@ public abstract class ZetaCorePlugin extends JavaPlugin {
     }
 
     /**
-     * Called when the plugin is disabled. Not called if enabling the plugin failed.
+     * Called when the plugin is disabled, before services and beans are destroyed
+     * (see {@link com.zetaplugins.zetacore.di.annotation.PreDestroy}). Not called if enabling the plugin failed.
      */
     protected void onShutdown() {
     }

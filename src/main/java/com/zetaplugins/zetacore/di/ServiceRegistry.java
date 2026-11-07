@@ -5,6 +5,7 @@ import com.zetaplugins.zetacore.di.annotation.Configuration;
 import com.zetaplugins.zetacore.di.annotation.Inject;
 import com.zetaplugins.zetacore.di.annotation.Service;
 import com.zetaplugins.zetacore.di.annotation.PostConstruct;
+import com.zetaplugins.zetacore.di.annotation.PreDestroy;
 import com.zetaplugins.zetacore.di.condition.ConditionEvaluator;
 import com.zetaplugins.zetacore.scan.ClassScanner;
 import org.bukkit.plugin.java.JavaPlugin;
@@ -16,6 +17,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.*;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -33,6 +35,8 @@ public class ServiceRegistry {
     private final Map<Class<?>, BeanDefinition> beanDefinitions = new LinkedHashMap<>();
     private final Set<Class<?>> configurationClasses = new HashSet<>();
     private final ConditionEvaluator conditions;
+    private final List<Object> managedObjects = new ArrayList<>();
+    private final Set<Object> managedObjectSet = Collections.newSetFromMap(new IdentityHashMap<>());
     private final ThreadLocal<Deque<Class<?>>> creationStack = ThreadLocal.withInitial(ArrayDeque::new);
 
     /**
@@ -191,7 +195,10 @@ public class ServiceRegistry {
 
             boolean alreadyManaged = instances.values().stream().anyMatch(v -> v == result);
             instances.put(bean.type(), result);
-            if (!alreadyManaged) injectServices(result);
+            if (!alreadyManaged) {
+                injectServices(result);
+                track(result);
+            }
             return result;
         } finally {
             stack.pop();
@@ -216,6 +223,7 @@ public class ServiceRegistry {
         injectServices(instance);
         instances.put(instance.getClass(), instance);
         registerBindings(instance.getClass(), instance);
+        track(instance);
     }
 
     /**
@@ -228,6 +236,7 @@ public class ServiceRegistry {
         requireNoBean(cls);
         injectServices(instance);
         instances.put(cls, instance);
+        track(instance);
     }
 
     /**
@@ -297,6 +306,7 @@ public class ServiceRegistry {
             }
             registerBindings(resolvedClass, obj);
             injectServices(obj);
+            track(obj);
             return obj;
         } finally {
             stack.pop();
@@ -381,10 +391,72 @@ public class ServiceRegistry {
         try {
             T obj = createInstance(cls);
             injectServices(obj);
+            track(obj);
             return obj;
         } finally {
             stack.pop();
         }
+    }
+
+    /**
+     * Destroys all managed objects in reverse creation order.
+     * <p>
+     * For each object, its {@link PreDestroy} methods are called, then {@link AutoCloseable#close()} if the object
+     * implements it and {@code close()} is not itself annotated with {@link PreDestroy}. Prototype services are not managed.
+     * Errors are logged and do not stop the remaining objects from being destroyed. Calling this again has no effect
+     * unless new objects were created in the meantime.
+     */
+    public void shutdown() {
+        List<Object> objects = new ArrayList<>(managedObjects);
+        managedObjects.clear();
+        managedObjectSet.clear();
+        Collections.reverse(objects);
+        for (Object object : objects) {
+            destroy(object);
+        }
+    }
+
+    private void track(Object object) {
+        if (managedObjectSet.add(object)) managedObjects.add(object);
+    }
+
+    private void destroy(Object target) {
+        boolean closeCalled = false;
+        Class<?> cls = target.getClass();
+        while (cls != null && cls != Object.class) {
+            for (Method method : cls.getDeclaredMethods()) {
+                if (!method.isAnnotationPresent(PreDestroy.class)) continue;
+                String name = cls.getName() + "#" + method.getName();
+                if (method.getParameterCount() != 0) {
+                    logShutdownError("@PreDestroy method " + name + " must have no parameters", null);
+                    continue;
+                }
+                if (method.getName().equals("close")) closeCalled = true;
+                try {
+                    method.setAccessible(true);
+                    method.invoke(target);
+                } catch (InvocationTargetException e) {
+                    logShutdownError("@PreDestroy method " + name + " threw an exception", e.getCause());
+                } catch (Exception | LinkageError e) {
+                    logShutdownError("Failed to execute @PreDestroy method " + name, e);
+                }
+            }
+            cls = cls.getSuperclass();
+        }
+
+        if (target instanceof AutoCloseable closeable && !closeCalled) {
+            try {
+                closeable.close();
+            } catch (Exception | LinkageError e) {
+                logShutdownError("Failed to close " + target.getClass().getName(), e);
+            }
+        }
+    }
+
+    private void logShutdownError(String message, Throwable cause) {
+        Logger logger = plugin.getLogger();
+        if (logger == null) logger = Logger.getLogger(ServiceRegistry.class.getName());
+        logger.log(Level.SEVERE, message, cause);
     }
 
     /**

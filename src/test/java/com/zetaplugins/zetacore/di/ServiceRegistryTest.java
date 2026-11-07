@@ -11,7 +11,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+import java.util.logging.Logger;
+
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 class ServiceRegistryTest {
@@ -38,6 +41,23 @@ class ServiceRegistryTest {
         @Inject ServiceRegistry registry;
         @Inject ClassScanner scanner;
         @Inject Plugin plugin;
+    }
+
+    @Service
+    static class LoggingService {
+        final Logger constructorLogger;
+        @Inject Logger fieldLogger;
+
+        LoggingService(Logger logger) {
+            this.constructorLogger = logger;
+        }
+    }
+
+    static class LoggerBeans {
+        @com.zetaplugins.zetacore.di.annotation.Bean
+        Logger logger() {
+            return Logger.getLogger("other");
+        }
     }
 
     @Service
@@ -73,5 +93,22 @@ class ServiceRegistryTest {
     void resolvesFieldCycles() {
         FieldCycleA a = registry.getOrCreate(FieldCycleA.class);
         assertSame(a, a.b.a);
+    }
+
+    @Test
+    void injectsPluginLogger() {
+        Logger logger = Logger.getLogger("test-plugin");
+        when(plugin.getLogger()).thenReturn(logger);
+
+        LoggingService service = registry.getOrCreate(LoggingService.class);
+
+        assertSame(logger, service.constructorLogger);
+        assertSame(logger, service.fieldLogger);
+    }
+
+    @Test
+    void rejectsOtherLoggerProviders() {
+        assertThrows(ServiceException.class, () -> registry.registerConfiguration(LoggerBeans.class));
+        assertThrows(ServiceException.class, () -> registry.registerInstance(Logger.class, Logger.getLogger("other")));
     }
 }

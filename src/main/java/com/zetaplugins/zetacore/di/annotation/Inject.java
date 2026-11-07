@@ -9,6 +9,7 @@ import java.lang.annotation.Target;
  * Indicates that a field or constructor should be automatically injected by the {@link com.zetaplugins.zetacore.di.ServiceRegistry}.
  * <p>
  * <b>Fields:</b> If the field type is {@link org.bukkit.plugin.java.JavaPlugin} or a subclass, the plugin instance is injected.
+ * If it is {@link java.util.logging.Logger}, the plugin's logger is injected.
  * Otherwise, the field is resolved as a service from the registry.
  * <p>
  * <b>Constructors:</b> Marks the constructor the registry should use to create the instance. Each parameter is resolved

@@ -15,9 +15,13 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.*;
+import java.util.logging.Logger;
 
 /**
  * A registry for managing and injecting service instances.
+ * <p>
+ * Besides services and beans, the registry always provides the plugin itself (as {@link JavaPlugin},
+ * any supertype or the plugin's own class), the plugin's {@link Logger}, the registry itself and its {@link ClassScanner}.
  */
 public class ServiceRegistry {
     private final JavaPlugin plugin;
@@ -135,6 +139,7 @@ public class ServiceRegistry {
     }
 
     private String findProvider(Class<?> type) {
+        if (type == Logger.class) return "the plugin logger";
         BeanDefinition bean = beanDefinitions.get(type);
         if (bean != null) return bean.describe();
         if (instances.containsKey(type)) return "registered instance of " + instances.get(type).getClass().getName();
@@ -220,6 +225,8 @@ public class ServiceRegistry {
      */
     @SuppressWarnings("unchecked")
     public <T> T getOrCreate(Class<T> cls) {
+        if (cls == Logger.class) return (T) plugin.getLogger();
+
         Object registered = instances.get(cls);
         if (registered != null) return (T) registered;
 
@@ -528,6 +535,9 @@ public class ServiceRegistry {
     }
 
     private void requireNoBean(Class<?> cls) {
+        if (cls == Logger.class) {
+            throw new ServiceException("Cannot register an instance of " + Logger.class.getName() + ": it is always the plugin logger");
+        }
         BeanDefinition bean = beanDefinitions.get(cls);
         if (bean != null) {
             throw new ServiceException("Cannot register an instance of " + cls.getName() + ": it is provided by " + bean.describe());

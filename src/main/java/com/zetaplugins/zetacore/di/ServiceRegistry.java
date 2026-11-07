@@ -1,5 +1,7 @@
 package com.zetaplugins.zetacore.di;
 
+import com.zetaplugins.zetacore.di.annotation.Bean;
+import com.zetaplugins.zetacore.di.annotation.Configuration;
 import com.zetaplugins.zetacore.di.annotation.Inject;
 import com.zetaplugins.zetacore.di.annotation.Service;
 import com.zetaplugins.zetacore.di.annotation.PostConstruct;
@@ -7,8 +9,10 @@ import com.zetaplugins.zetacore.scan.ClassScanner;
 import org.bukkit.plugin.java.JavaPlugin;
 
 import java.lang.reflect.Constructor;
+import java.lang.reflect.Executable;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.*;
 
@@ -21,6 +25,8 @@ public class ServiceRegistry {
     private final boolean requireServiceAnnotation;
     private final ClassScanner scanner;
     private final List<InstanceResolver> resolvers = new ArrayList<>();
+    private final Map<Class<?>, BeanDefinition> beanDefinitions = new LinkedHashMap<>();
+    private final Set<Class<?>> configurationClasses = new HashSet<>();
     private final ThreadLocal<Deque<Class<?>>> creationStack = ThreadLocal.withInitial(ArrayDeque::new);
 
     /**
@@ -75,7 +81,8 @@ public class ServiceRegistry {
     }
 
     /**
-     * Initializes and registers all eagerly loaded singleton services found in the specified package.
+     * Initializes all eagerly loaded singleton services found in the specified package
+     * and all registered {@link Bean}s marked as eagerly loaded.
      */
     public void initializeEagerServices() {
         Set<Class<?>> annotatedClasses = scanner.getTypesAnnotatedWith(Service.class);
@@ -86,6 +93,99 @@ public class ServiceRegistry {
                 getOrCreate(cls);
             }
         }
+
+        for (BeanDefinition bean : List.copyOf(beanDefinitions.values())) {
+            if (bean.eager()) getOrCreate(bean.type());
+        }
+    }
+
+    /**
+     * Registers the {@link Bean} methods of all {@link Configuration} classes found in the scanned package.
+     * Beans are created lazily, or by {@link #initializeEagerServices()} if marked as eagerly loaded.
+     * @throws ServiceException If a bean's type is already provided by another bean, a service or a registered instance.
+     */
+    public void registerConfigurations() {
+        for (Class<?> cls : scanner.getTypesAnnotatedWith(Configuration.class)) {
+            if (cls.isAnnotationPresent(Configuration.class)) registerConfiguration(cls);
+        }
+    }
+
+    /**
+     * Registers the {@link Bean} methods of a single configuration class. Registering the same class twice has no effect.
+     * @param configurationClass The class declaring the bean methods.
+     * @throws ServiceException If a bean method is invalid or its type is already provided elsewhere.
+     */
+    public void registerConfiguration(Class<?> configurationClass) {
+        if (!configurationClasses.add(configurationClass)) return;
+
+        for (Method method : configurationClass.getDeclaredMethods()) {
+            if (!method.isAnnotationPresent(Bean.class)) continue;
+
+            BeanDefinition bean = new BeanDefinition(method.getReturnType(), method, method.getAnnotation(Bean.class).eagerlyLoad());
+            if (bean.type() == void.class || bean.type().isPrimitive()) {
+                throw new ServiceException(bean.describe() + " must return an object type");
+            }
+            String existing = findProvider(bean.type());
+            if (existing != null) {
+                throw new ServiceException("Multiple providers for " + bean.type().getName() + ": "
+                        + existing + " and " + bean.describe());
+            }
+            beanDefinitions.put(bean.type(), bean);
+        }
+    }
+
+    private String findProvider(Class<?> type) {
+        BeanDefinition bean = beanDefinitions.get(type);
+        if (bean != null) return bean.describe();
+        if (instances.containsKey(type)) return "registered instance of " + instances.get(type).getClass().getName();
+        if (type.isAnnotationPresent(Service.class)) return "@Service " + type.getName();
+        for (Class<?> service : scanner.getTypesAnnotatedWith(Service.class)) {
+            Service annotation = service.getAnnotation(Service.class);
+            if (annotation == null) continue;
+            for (Class<?> bind : annotation.binds()) {
+                if (bind == type) return "@Service(binds = " + type.getSimpleName() + ".class) " + service.getName();
+            }
+        }
+        return null;
+    }
+
+    private Object createBean(BeanDefinition bean) {
+        Deque<Class<?>> stack = creationStack.get();
+        if (stack.contains(bean.type())) {
+            throw new ServiceException("Circular dependency detected: " + stack + " -> " + bean.type().getName());
+        }
+        stack.push(bean.type());
+        try {
+            Method method = bean.method();
+            Object owner = Modifier.isStatic(method.getModifiers()) ? null : getOrCreateConfiguration(method.getDeclaringClass());
+            Object[] args = resolveArguments(method);
+
+            Object result;
+            try {
+                method.setAccessible(true);
+                result = method.invoke(owner, args);
+            } catch (InvocationTargetException e) {
+                throw new ServiceException(bean.describe() + " threw an exception", e.getCause() != null ? e.getCause() : e);
+            } catch (IllegalAccessException e) {
+                throw new ServiceException("Failed to invoke " + bean.describe(), e);
+            }
+            if (result == null) throw new ServiceException(bean.describe() + " returned null");
+
+            boolean alreadyManaged = instances.values().stream().anyMatch(v -> v == result);
+            instances.put(bean.type(), result);
+            if (!alreadyManaged) injectServices(result);
+            return result;
+        } finally {
+            stack.pop();
+        }
+    }
+
+    private Object getOrCreateConfiguration(Class<?> configurationClass) {
+        Object existing = instances.get(configurationClass);
+        if (existing != null) return existing;
+        Object created = create(configurationClass);
+        instances.put(configurationClass, created);
+        return created;
     }
 
     /**
@@ -94,6 +194,7 @@ public class ServiceRegistry {
      */
     public void registerInstance(Object instance) {
         requireServiceAnnotation(instance.getClass());
+        requireNoBean(instance.getClass());
         injectServices(instance);
         instances.put(instance.getClass(), instance);
         registerBindings(instance.getClass(), instance);
@@ -106,6 +207,7 @@ public class ServiceRegistry {
      */
     public void registerInstance(Class<?> cls, Object instance) {
         requireServiceAnnotation(cls);
+        requireNoBean(cls);
         injectServices(instance);
         instances.put(cls, instance);
     }
@@ -120,6 +222,9 @@ public class ServiceRegistry {
     public <T> T getOrCreate(Class<T> cls) {
         Object registered = instances.get(cls);
         if (registered != null) return (T) registered;
+
+        BeanDefinition bean = beanDefinitions.get(cls);
+        if (bean != null) return (T) createBean(bean);
 
         for (InstanceResolver resolver : resolvers) {
             Object resolved = resolver.resolve(cls);
@@ -271,7 +376,7 @@ public class ServiceRegistry {
      */
     private <T> T createInstance(Class<T> cls) {
         Constructor<?> constructor = selectConstructor(cls);
-        Object[] args = resolveConstructorArguments(constructor);
+        Object[] args = resolveArguments(constructor);
         try {
             constructor.setAccessible(true);
             return cls.cast(constructor.newInstance(args));
@@ -316,12 +421,12 @@ public class ServiceRegistry {
     }
 
     /**
-     * Resolves the arguments for the given constructor from the registry.
-     * @param constructor The constructor to resolve arguments for.
+     * Resolves the arguments for the given constructor or method from the registry.
+     * @param executable The constructor or method to resolve arguments for.
      * @return The resolved arguments.
      */
-    private Object[] resolveConstructorArguments(Constructor<?> constructor) {
-        Class<?>[] paramTypes = constructor.getParameterTypes();
+    private Object[] resolveArguments(Executable executable) {
+        Class<?>[] paramTypes = executable.getParameterTypes();
         Object[] args = new Object[paramTypes.length];
         for (int i = 0; i < paramTypes.length; i++) {
             Class<?> type = paramTypes[i];
@@ -329,7 +434,7 @@ public class ServiceRegistry {
                 args[i] = plugin;
             } else if (type.isPrimitive()) {
                 throw new ServiceException("Cannot inject primitive parameter of type " + type.getName()
-                        + " into constructor of " + constructor.getDeclaringClass().getName());
+                        + " into " + executable.getDeclaringClass().getName() + "#" + executable.getName());
             } else {
                 args[i] = getOrCreate(type);
             }
@@ -419,6 +524,19 @@ public class ServiceRegistry {
                         + " but does not implement or extend it.");
             }
             instances.put(bindType, instance);
+        }
+    }
+
+    private void requireNoBean(Class<?> cls) {
+        BeanDefinition bean = beanDefinitions.get(cls);
+        if (bean != null) {
+            throw new ServiceException("Cannot register an instance of " + cls.getName() + ": it is provided by " + bean.describe());
+        }
+    }
+
+    private record BeanDefinition(Class<?> type, Method method, boolean eager) {
+        String describe() {
+            return "@Bean " + method.getDeclaringClass().getName() + "#" + method.getName() + "()";
         }
     }
 

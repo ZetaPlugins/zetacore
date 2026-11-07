@@ -17,7 +17,8 @@ import java.util.logging.Level;
  * Base class for plugins built on ZetaCore.
  * <p>
  * On enable, the plugin boots itself: it saves the default config, creates the {@link ConfigService} and
- * {@link ServiceRegistry}, starts eagerly loaded services and registers all commands and listeners found
+ * {@link ServiceRegistry}, registers the beans of all {@link com.zetaplugins.zetacore.di.annotation.Configuration}
+ * classes, starts eagerly loaded services and beans and registers all commands and listeners found
  * in the plugin's package. Use {@link ZetaPlugin} on the main class to change the defaults, and override
  * {@link #onStartup()} and {@link #onShutdown()} for custom logic.
  * <p>
@@ -71,6 +72,7 @@ public abstract class ZetaCorePlugin extends JavaPlugin {
         serviceRegistry.registerInstance(configService);
         serviceRegistry.addResolver(configService.asResolver());
 
+        serviceRegistry.registerConfigurations();
         serviceRegistry.initializeEagerServices();
 
         List<String> commands = new AutoCommandRegistrar(this, classScanner, commandNamespace, serviceRegistry)

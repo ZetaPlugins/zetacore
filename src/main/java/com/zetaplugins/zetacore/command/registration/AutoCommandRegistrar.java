@@ -3,10 +3,10 @@ package com.zetaplugins.zetacore.command.registration;
 import com.zetaplugins.zetacore.command.annotation.Command;
 import com.zetaplugins.zetacore.command.annotation.TabCompleterHandler;
 import com.zetaplugins.zetacore.di.ServiceRegistry;
+import com.zetaplugins.zetacore.scan.ClassScanner;
 import org.bukkit.Bukkit;
 import org.bukkit.command.*;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.reflections.Reflections;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -21,7 +21,7 @@ import java.util.logging.Level;
  */
 public class AutoCommandRegistrar implements CommandRegistrar {
     private final JavaPlugin plugin;
-    private final String packagePrefix;
+    private final ClassScanner scanner;
     private final String commandNamespace;
     private final ServiceRegistry serviceRegistry;
 
@@ -30,10 +30,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
      * @param packagePrefix The package prefix to scan for annotated classes.
      */
     public AutoCommandRegistrar(JavaPlugin plugin, String packagePrefix) {
-        this.plugin = plugin;
-        this.packagePrefix = packagePrefix;
-        this.commandNamespace = plugin.getName().toLowerCase();
-        this.serviceRegistry = null;
+        this(plugin, packagePrefix, plugin.getName().toLowerCase());
     }
 
     /**
@@ -42,15 +39,28 @@ public class AutoCommandRegistrar implements CommandRegistrar {
      * @param commandNamespace The namespace to use for the command. (e.g. "myplugin" for /myplugin:command)
      */
     public AutoCommandRegistrar(JavaPlugin plugin, String packagePrefix, String commandNamespace) {
-        this.plugin = plugin;
-        this.packagePrefix = packagePrefix;
-        this.commandNamespace = commandNamespace;
-        this.serviceRegistry = null;
+        this(plugin, packagePrefix, commandNamespace, null);
     }
 
+    /**
+     * @param plugin The JavaPlugin instance.
+     * @param packagePrefix The package prefix to scan for annotated classes.
+     * @param commandNamespace The namespace to use for the command. (e.g. "myplugin" for /myplugin:command)
+     * @param serviceRegistry The ServiceRegistry for dependency injection, or null.
+     */
     public AutoCommandRegistrar(JavaPlugin plugin, String packagePrefix, String commandNamespace, ServiceRegistry serviceRegistry) {
+        this(plugin, new ClassScanner(packagePrefix, plugin.getClass().getClassLoader()), commandNamespace, serviceRegistry);
+    }
+
+    /**
+     * @param plugin The JavaPlugin instance.
+     * @param scanner The scanner used to find annotated classes.
+     * @param commandNamespace The namespace to use for the command. (e.g. "myplugin" for /myplugin:command)
+     * @param serviceRegistry The ServiceRegistry for dependency injection, or null.
+     */
+    public AutoCommandRegistrar(JavaPlugin plugin, ClassScanner scanner, String commandNamespace, ServiceRegistry serviceRegistry) {
         this.plugin = plugin;
-        this.packagePrefix = packagePrefix;
+        this.scanner = scanner;
         this.commandNamespace = commandNamespace;
         this.serviceRegistry = serviceRegistry;
     }
@@ -84,11 +94,10 @@ public class AutoCommandRegistrar implements CommandRegistrar {
      * @return A list of names of the registered commands.
      */
     public List<String> registerAllCommands(Predicate<String> commandNameFilter) {
-        Reflections reflections = new Reflections(packagePrefix);
         List<String> registeredCommands = new ArrayList<>();
 
         Map<String, TabCompleter> tabCompleters = new HashMap<>();
-        Set<Class<?>> tabCompleterClasses = reflections.getTypesAnnotatedWith(TabCompleterHandler.class);
+        Set<Class<?>> tabCompleterClasses = scanner.getTypesAnnotatedWith(TabCompleterHandler.class);
 
         for (Class<?> clazz : tabCompleterClasses) {
             if (TabCompleter.class.isAssignableFrom(clazz)) {
@@ -124,7 +133,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
             }
         }
 
-        Set<Class<?>> commandClasses = reflections.getTypesAnnotatedWith(Command.class);
+        Set<Class<?>> commandClasses = scanner.getTypesAnnotatedWith(Command.class);
 
         for (Class<?> clazz : commandClasses) {
             if (CommandExecutor.class.isAssignableFrom(clazz)) {
@@ -279,6 +288,7 @@ public class AutoCommandRegistrar implements CommandRegistrar {
         private String packagePrefix;
         private String commandNamespace;
         private ServiceRegistry serviceRegistry;
+        private ClassScanner scanner;
 
         public Builder withPlugin(JavaPlugin plugin) {
             this.plugin = plugin;
@@ -300,11 +310,30 @@ public class AutoCommandRegistrar implements CommandRegistrar {
             return this;
         }
 
+        /**
+         * Uses an existing scanner instead of creating one from the package prefix.
+         * Defaults to the service registry's scanner if a registry is set.
+         * @param scanner The scanner to use.
+         * @return This builder.
+         */
+        public Builder withClassScanner(ClassScanner scanner) {
+            this.scanner = scanner;
+            return this;
+        }
+
         public AutoCommandRegistrar build() {
             if (plugin == null) throw new IllegalStateException("Plugin must be set");
-            if (packagePrefix == null) throw new IllegalStateException("Package prefix must be set");
             if (commandNamespace == null) commandNamespace = plugin.getName().toLowerCase();
-            return new AutoCommandRegistrar(plugin, packagePrefix, commandNamespace, serviceRegistry);
+            ClassScanner resolvedScanner = scanner;
+            if (resolvedScanner == null && serviceRegistry != null
+                    && (packagePrefix == null || packagePrefix.equals(serviceRegistry.getClassScanner().getPackagePrefix()))) {
+                resolvedScanner = serviceRegistry.getClassScanner();
+            }
+            if (resolvedScanner == null) {
+                if (packagePrefix == null) throw new IllegalStateException("Package prefix, class scanner or service registry must be set");
+                resolvedScanner = new ClassScanner(packagePrefix, plugin.getClass().getClassLoader());
+            }
+            return new AutoCommandRegistrar(plugin, resolvedScanner, commandNamespace, serviceRegistry);
         }
     }
 }

@@ -3,8 +3,8 @@ package com.zetaplugins.zetacore.di;
 import com.zetaplugins.zetacore.di.annotation.Inject;
 import com.zetaplugins.zetacore.di.annotation.Service;
 import com.zetaplugins.zetacore.di.annotation.PostConstruct;
+import com.zetaplugins.zetacore.scan.ClassScanner;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.reflections.Reflections;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -19,7 +19,7 @@ public class ServiceRegistry {
     private final JavaPlugin plugin;
     private final Map<Class<?>, Object> instances = new HashMap<>();
     private final boolean requireServiceAnnotation;
-    private final String packagePrefix;
+    private final ClassScanner scanner;
     private final ThreadLocal<Deque<Class<?>>> creationStack = ThreadLocal.withInitial(ArrayDeque::new);
 
     /**
@@ -27,32 +27,48 @@ public class ServiceRegistry {
      * @param plugin The main plugin instance.
      */
     public ServiceRegistry(JavaPlugin plugin) {
-        this.plugin = plugin;
-        instances.put(plugin.getClass(), plugin);
-        instances.put(JavaPlugin.class, plugin);
-        this.requireServiceAnnotation = false;
-        this.packagePrefix = plugin.getClass().getPackageName();
+        this(plugin, false, plugin.getClass().getPackageName());
     }
 
     /**
      * Creates a new ServiceRegistry for the given plugin.
      * @param plugin The main plugin instance.
      * @param requireServiceAnnotation Whether to require the {@link Service} annotation on managed classes.
+     * @param packagePrefix The package to scan for services.
      */
     public ServiceRegistry(JavaPlugin plugin, boolean requireServiceAnnotation, String packagePrefix) {
+        this(plugin, requireServiceAnnotation, new ClassScanner(packagePrefix, plugin.getClass().getClassLoader()));
+    }
+
+    /**
+     * Creates a new ServiceRegistry for the given plugin that uses an existing scanner.
+     * @param plugin The main plugin instance.
+     * @param requireServiceAnnotation Whether to require the {@link Service} annotation on managed classes.
+     * @param scanner The scanner used to discover services.
+     */
+    public ServiceRegistry(JavaPlugin plugin, boolean requireServiceAnnotation, ClassScanner scanner) {
         this.plugin = plugin;
+        this.requireServiceAnnotation = requireServiceAnnotation;
+        this.scanner = scanner;
         instances.put(plugin.getClass(), plugin);
         instances.put(JavaPlugin.class, plugin);
-        this.requireServiceAnnotation = requireServiceAnnotation;
-        this.packagePrefix = packagePrefix;
+        instances.put(ServiceRegistry.class, this);
+        instances.put(ClassScanner.class, scanner);
+    }
+
+    /**
+     * Gets the scanner this registry uses to discover services.
+     * @return The class scanner.
+     */
+    public ClassScanner getClassScanner() {
+        return scanner;
     }
 
     /**
      * Initializes and registers all eagerly loaded singleton services found in the specified package.
      */
     public void initializeEagerServices() {
-        Reflections reflections = new Reflections(packagePrefix);
-        Set<Class<?>> annotatedClasses = reflections.getTypesAnnotatedWith(Service.class);
+        Set<Class<?>> annotatedClasses = scanner.getTypesAnnotatedWith(Service.class);
 
         for (Class<?> cls : annotatedClasses) {
             ServiceOptions options = getServiceOptions(cls);
@@ -92,6 +108,9 @@ public class ServiceRegistry {
      */
     @SuppressWarnings("unchecked")
     public <T> T getOrCreate(Class<T> cls) {
+        Object registered = instances.get(cls);
+        if (registered != null) return (T) registered;
+
         requireServiceAnnotation(cls);
 
         Deque<Class<?>> stack = creationStack.get();
@@ -109,13 +128,15 @@ public class ServiceRegistry {
                 }
             }
 
-            Object existing = instances.get(cls);
-            if (existing != null) return (T) existing;
-
             // If the requested type is an interface or abstract class, try to discover a concrete implementation
             Class<T> resolvedClass = cls;
             if (cls.isInterface() || Modifier.isAbstract(cls.getModifiers())) {
                 resolvedClass = discoverImplementation(cls);
+                Object impl = instances.get(resolvedClass);
+                if (impl != null) {
+                    instances.put(cls, impl);
+                    return (T) impl;
+                }
             }
 
             T obj = createInstance(resolvedClass);
@@ -144,8 +165,7 @@ public class ServiceRegistry {
      */
     @SuppressWarnings("unchecked")
     private <T> Class<T> discoverImplementation(Class<T> type) {
-        Reflections reflections = new Reflections(packagePrefix);
-        List<Class<?>> serviceCandidates = reflections.getSubTypesOf(type).stream()
+        List<Class<?>> serviceCandidates = scanner.getSubTypesOf(type).stream()
                 .<Class<?>>map(c -> c)
                 .filter(c -> c.isAnnotationPresent(Service.class))
                 .filter(c -> !c.isInterface() && !Modifier.isAbstract(c.getModifiers()))
@@ -331,7 +351,7 @@ public class ServiceRegistry {
 
         try {
             field.setAccessible(true);
-            if (JavaPlugin.class.isAssignableFrom(field.getType())) {
+            if (isPluginType(field.getType())) {
                 field.set(target, plugin);
             } else {
                 field.set(target, getOrCreate(field.getType()));
@@ -414,6 +434,7 @@ public class ServiceRegistry {
         private JavaPlugin plugin;
         private boolean requireServiceAnnotation = false;
         private String packagePrefix;
+        private ClassScanner scanner;
 
         public Builder withPlugin(JavaPlugin plugin) {
             this.plugin = plugin;
@@ -431,8 +452,19 @@ public class ServiceRegistry {
             return this;
         }
 
+        /**
+         * Uses an existing scanner instead of creating one from the package prefix.
+         * @param scanner The scanner to use.
+         * @return This builder.
+         */
+        public Builder withClassScanner(ClassScanner scanner) {
+            this.scanner = scanner;
+            return this;
+        }
+
         public ServiceRegistry build() {
             if (plugin == null) throw new IllegalStateException("Plugin must be set before building ServiceRegistry.");
+            if (scanner != null) return new ServiceRegistry(plugin, requireServiceAnnotation, scanner);
             if (packagePrefix == null) throw new IllegalStateException("Package prefix must be set before building ServiceRegistry.");
             return new ServiceRegistry(plugin, requireServiceAnnotation, packagePrefix);
         }

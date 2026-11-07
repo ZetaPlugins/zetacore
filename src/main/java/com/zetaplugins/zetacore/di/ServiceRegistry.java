@@ -17,6 +17,9 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -25,13 +28,22 @@ import java.util.logging.Logger;
  * <p>
  * Besides services and beans, the registry always provides the plugin itself (as {@link JavaPlugin},
  * any supertype or the plugin's own class), the plugin's {@link Logger}, the registry itself and its {@link ClassScanner}.
+ * <p>
+ * The registry is thread-safe. Looking up a singleton that already exists does not lock. Creating, registering and
+ * destroying objects happens under a single lock, and an object only becomes visible to other threads once it and
+ * every object created along with it are fully injected and initialized. Because constructors, {@link Bean} methods
+ * and {@link PostConstruct} methods run while the lock is held, they must not wait for another thread that itself
+ * uses the registry (for example by blocking on a task scheduled on the main thread).
  */
 public class ServiceRegistry {
     private final JavaPlugin plugin;
-    private final Map<Class<?>, Object> instances = new HashMap<>();
+    private final Map<Class<?>, Object> instances = new ConcurrentHashMap<>();
+    private final Map<Class<?>, Object> pendingInstances = new HashMap<>();
+    private final Object lock = new Object();
+    private int lockDepth;
     private final boolean requireServiceAnnotation;
     private final ClassScanner scanner;
-    private final List<InstanceResolver> resolvers = new ArrayList<>();
+    private final List<InstanceResolver> resolvers = new CopyOnWriteArrayList<>();
     private final Map<Class<?>, BeanDefinition> beanDefinitions = new LinkedHashMap<>();
     private final Set<Class<?>> configurationClasses = new HashSet<>();
     private final ConditionEvaluator conditions;
@@ -75,6 +87,49 @@ public class ServiceRegistry {
     }
 
     /**
+     * Runs the action under the registry lock. Instances created during the outermost call are published
+     * once it succeeds and discarded if it fails, so other threads never see partially initialized objects.
+     */
+    private <R> R locked(Supplier<R> action) {
+        synchronized (lock) {
+            lockDepth++;
+            boolean success = false;
+            try {
+                R result = action.get();
+                success = true;
+                return result;
+            } finally {
+                if (--lockDepth == 0) {
+                    if (success) instances.putAll(pendingInstances);
+                    pendingInstances.clear();
+                }
+            }
+        }
+    }
+
+    private void locked(Runnable action) {
+        locked(() -> {
+            action.run();
+            return null;
+        });
+    }
+
+    private Object findInstance(Class<?> cls) {
+        Object instance = instances.get(cls);
+        return instance != null ? instance : pendingInstances.get(cls);
+    }
+
+    private void putInstance(Class<?> cls, Object instance) {
+        pendingInstances.put(cls, instance);
+    }
+
+    private List<Object> allInstances() {
+        List<Object> all = new ArrayList<>(instances.values());
+        all.addAll(pendingInstances.values());
+        return all;
+    }
+
+    /**
      * Adds a resolver that supplies instances for types the registry cannot create itself.
      * Resolvers are consulted in the order they were added, before the {@link Service} annotation is checked.
      * @param resolver The resolver to add.
@@ -104,6 +159,10 @@ public class ServiceRegistry {
      * and all registered {@link Bean}s marked as eagerly loaded.
      */
     public void initializeEagerServices() {
+        locked(this::initializeEagerServicesLocked);
+    }
+
+    private void initializeEagerServicesLocked() {
         Set<Class<?>> annotatedClasses = scanner.getTypesAnnotatedWith(Service.class);
 
         for (Class<?> cls : annotatedClasses) {
@@ -124,8 +183,12 @@ public class ServiceRegistry {
      * @throws ServiceException If a bean's type is already provided by another bean, a service or a registered instance.
      */
     public void registerConfigurations() {
+        locked(this::registerConfigurationsLocked);
+    }
+
+    private void registerConfigurationsLocked() {
         for (Class<?> cls : scanner.getTypesAnnotatedWith(Configuration.class)) {
-            if (cls.isAnnotationPresent(Configuration.class)) registerConfiguration(cls);
+            if (cls.isAnnotationPresent(Configuration.class)) registerConfigurationLocked(cls);
         }
     }
 
@@ -135,6 +198,10 @@ public class ServiceRegistry {
      * @throws ServiceException If a bean method is invalid or its type is already provided elsewhere.
      */
     public void registerConfiguration(Class<?> configurationClass) {
+        locked(() -> registerConfigurationLocked(configurationClass));
+    }
+
+    private void registerConfigurationLocked(Class<?> configurationClass) {
         if (!configurationClasses.add(configurationClass)) return;
         if (!conditions.matches(configurationClass)) return;
 
@@ -159,7 +226,7 @@ public class ServiceRegistry {
         if (type == Logger.class) return "the plugin logger";
         BeanDefinition bean = beanDefinitions.get(type);
         if (bean != null) return bean.describe();
-        if (instances.containsKey(type)) return "registered instance of " + instances.get(type).getClass().getName();
+        if (findInstance(type) != null) return "registered instance of " + findInstance(type).getClass().getName();
         if (type.isAnnotationPresent(Service.class) && conditions.matches(type)) return "@Service " + type.getName();
         for (Class<?> service : scanner.getTypesAnnotatedWith(Service.class)) {
             Service annotation = service.getAnnotation(Service.class);
@@ -195,8 +262,8 @@ public class ServiceRegistry {
             }
             if (result == null) throw new ServiceException(bean.describe() + " returned null");
 
-            boolean alreadyManaged = instances.values().stream().anyMatch(v -> v == result);
-            instances.put(bean.type(), result);
+            boolean alreadyManaged = allInstances().stream().anyMatch(v -> v == result);
+            putInstance(bean.type(), result);
             if (!alreadyManaged) {
                 injectServices(result);
                 track(result);
@@ -208,10 +275,10 @@ public class ServiceRegistry {
     }
 
     private Object getOrCreateConfiguration(Class<?> configurationClass) {
-        Object existing = instances.get(configurationClass);
+        Object existing = findInstance(configurationClass);
         if (existing != null) return existing;
         Object created = create(configurationClass);
-        instances.put(configurationClass, created);
+        putInstance(configurationClass, created);
         return created;
     }
 
@@ -220,10 +287,14 @@ public class ServiceRegistry {
      * @param instance The instance to register.
      */
     public void registerInstance(Object instance) {
+        locked(() -> registerInstanceLocked(instance));
+    }
+
+    private void registerInstanceLocked(Object instance) {
         requireServiceAnnotation(instance.getClass());
         requireNoBean(instance.getClass());
         injectServices(instance);
-        instances.put(instance.getClass(), instance);
+        putInstance(instance.getClass(), instance);
         registerBindings(instance.getClass(), instance);
         track(instance);
     }
@@ -234,10 +305,14 @@ public class ServiceRegistry {
      * @param instance The instance to register.
      */
     public void registerInstance(Class<?> cls, Object instance) {
+        locked(() -> registerInstanceLocked(cls, instance));
+    }
+
+    private void registerInstanceLocked(Class<?> cls, Object instance) {
         requireServiceAnnotation(cls);
         requireNoBean(cls);
         injectServices(instance);
-        instances.put(cls, instance);
+        putInstance(cls, instance);
         track(instance);
     }
 
@@ -250,8 +325,16 @@ public class ServiceRegistry {
     @SuppressWarnings("unchecked")
     public <T> T getOrCreate(Class<T> cls) {
         if (cls == Logger.class) return (T) plugin.getLogger();
+        Object existing = instances.get(cls);
+        if (existing != null) return (T) existing;
+        return locked(() -> getOrCreateLocked(cls));
+    }
 
-        Object registered = instances.get(cls);
+    @SuppressWarnings("unchecked")
+    private <T> T getOrCreateLocked(Class<T> cls) {
+        if (cls == Logger.class) return (T) plugin.getLogger();
+
+        Object registered = findInstance(cls);
         if (registered != null) return (T) registered;
 
         BeanDefinition bean = beanDefinitions.get(cls);
@@ -264,7 +347,7 @@ public class ServiceRegistry {
                 throw new ServiceException("Resolver returned " + resolved.getClass().getName()
                         + " for " + cls.getName() + ", which is not an instance of that type");
             }
-            instances.put(cls, resolved);
+            putInstance(cls, resolved);
             return (T) resolved;
         }
 
@@ -294,17 +377,17 @@ public class ServiceRegistry {
             Class<T> resolvedClass = cls;
             if (cls.isInterface() || Modifier.isAbstract(cls.getModifiers())) {
                 resolvedClass = discoverImplementation(cls);
-                Object impl = instances.get(resolvedClass);
+                Object impl = findInstance(resolvedClass);
                 if (impl != null) {
-                    instances.put(cls, impl);
+                    putInstance(cls, impl);
                     return (T) impl;
                 }
             }
 
             T obj = createInstance(resolvedClass);
-            instances.put(cls, obj);
+            putInstance(cls, obj);
             if (resolvedClass != cls) {
-                instances.put(resolvedClass, obj);
+                putInstance(resolvedClass, obj);
             }
             registerBindings(resolvedClass, obj);
             injectServices(obj);
@@ -325,10 +408,14 @@ public class ServiceRegistry {
      * @param <T> The type.
      */
     public <T> List<T> getAll(Class<T> type) {
+        return locked(() -> getAllLocked(type));
+    }
+
+    private <T> List<T> getAllLocked(Class<T> type) {
         Set<Object> result = Collections.newSetFromMap(new IdentityHashMap<>());
         List<T> ordered = new ArrayList<>();
 
-        for (Object instance : List.copyOf(instances.values())) {
+        for (Object instance : allInstances()) {
             if (type.isInstance(instance) && result.add(instance)) ordered.add(type.cast(instance));
         }
         for (BeanDefinition bean : List.copyOf(beanDefinitions.values())) {
@@ -351,8 +438,12 @@ public class ServiceRegistry {
      * @return The number of distinct singletons.
      */
     public int getSingletonCount() {
+        return locked(this::getSingletonCountLocked);
+    }
+
+    private int getSingletonCountLocked() {
         Set<Object> distinct = Collections.newSetFromMap(new IdentityHashMap<>());
-        for (Object instance : instances.values()) {
+        for (Object instance : allInstances()) {
             if (managedObjectSet.contains(instance)) distinct.add(instance);
         }
         return distinct.size();
@@ -428,6 +519,10 @@ public class ServiceRegistry {
      * @param <T> The type of the instance.
      */
     public <T> T create(Class<T> cls) {
+        return locked(() -> createLocked(cls));
+    }
+
+    private <T> T createLocked(Class<T> cls) {
         Deque<Class<?>> stack = creationStack.get();
         if (stack.contains(cls)) {
             throw new ServiceException("Circular dependency detected: " + stack + " -> " + cls.getName());
@@ -452,9 +547,12 @@ public class ServiceRegistry {
      * unless new objects were created in the meantime.
      */
     public void shutdown() {
-        List<Object> objects = new ArrayList<>(managedObjects);
-        managedObjects.clear();
-        managedObjectSet.clear();
+        List<Object> objects = locked(() -> {
+            List<Object> snapshot = new ArrayList<>(managedObjects);
+            managedObjects.clear();
+            managedObjectSet.clear();
+            return snapshot;
+        });
         Collections.reverse(objects);
         for (Object object : objects) {
             destroy(object);
@@ -603,6 +701,10 @@ public class ServiceRegistry {
      * @param target The target object to inject services into.
      */
     public void injectServices(Object target) {
+        locked(() -> injectServicesLocked(target));
+    }
+
+    private void injectServicesLocked(Object target) {
         Class<?> cls = target.getClass();
         while (cls != null && cls != Object.class) {
             for (Field field : cls.getDeclaredFields()) {
@@ -670,7 +772,7 @@ public class ServiceRegistry {
                         + " declares binding to " + bindType.getName()
                         + " but does not implement or extend it.");
             }
-            instances.put(bindType, instance);
+            putInstance(bindType, instance);
         }
     }
 

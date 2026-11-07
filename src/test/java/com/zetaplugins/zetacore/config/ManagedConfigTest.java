@@ -66,6 +66,22 @@ class ManagedConfigTest {
     }
 
     @Test
+    void snapshotIsSeparateAndUnchangedByReload() throws IOException {
+        write("message: hi");
+        GreetingConfig managed = configService.getConfig(GreetingConfig.class);
+        GreetingConfig snapshot = configService.getSnapshot(GreetingConfig.class);
+        assertNotSame(managed, snapshot);
+        assertEquals("hi", snapshot.message);
+
+        write("message: bye");
+        configService.reload();
+
+        assertEquals("bye", managed.message);
+        assertEquals("hi", snapshot.message);
+        assertEquals("bye", configService.getSnapshot(GreetingConfig.class).message);
+    }
+
+    @Test
     void reloadUpdatesInstanceInPlaceAndResetsMissingKeysToDefaults() throws IOException {
         write("message: hi\ncount: 5");
         GreetingConfig config = configService.getConfig(GreetingConfig.class);

@@ -23,6 +23,10 @@ import java.util.logging.Level;
  * {@link #getConfig(Class)} always returns the same instance per class, and {@link #reload()} updates
  * those instances in place. Code holding a reference to a config object (e.g. an injected one) therefore
  * always sees the current values.
+ * <p>
+ * All methods are thread-safe. Updating a managed instance is not atomic, though: a thread that reads its fields
+ * while {@link #reload()} runs on another thread may see a mix of old and new values. Code that reads config values
+ * off the main thread and needs them to be consistent should use {@link #getSnapshot(Class)}.
  */
 @Service
 public class ConfigService {
@@ -44,7 +48,7 @@ public class ConfigService {
      * @param config The PluginConfig enum representing the desired configuration file.
      * @return The FileConfiguration object for the specified configuration file.
      */
-    public FileConfiguration getConfig(PluginConfigFile config) {
+    public synchronized FileConfiguration getConfig(PluginConfigFile config) {
         return getFileConfigFromFileName(config.getFileName(), true);
     }
 
@@ -54,7 +58,7 @@ public class ConfigService {
      * @param useCache Whether to use the cached version if available.
      * @return The FileConfiguration object for the specified configuration file.
      */
-    public FileConfiguration getConfig(PluginConfigFile config, boolean useCache) {
+    public synchronized FileConfiguration getConfig(PluginConfigFile config, boolean useCache) {
         return getFileConfigFromFileName(config.getFileName(), useCache);
     }
 
@@ -63,7 +67,7 @@ public class ConfigService {
      * @param fileName The name of the configuration file (without the .yml extension).
      * @return The FileConfiguration object for the specified configuration file.
      */
-    public FileConfiguration getConfig(String fileName) {
+    public synchronized FileConfiguration getConfig(String fileName) {
         return getFileConfigFromFileName(fileName, true);
     }
 
@@ -73,7 +77,7 @@ public class ConfigService {
      * @param useCache Whether to use the cached version if available.
      * @return The FileConfiguration object for the specified configuration file.
      */
-    public FileConfiguration getConfig(String fileName, boolean useCache) {
+    public synchronized FileConfiguration getConfig(String fileName, boolean useCache) {
         return getFileConfigFromFileName(fileName, useCache);
     }
 
@@ -85,7 +89,7 @@ public class ConfigService {
      * @return The managed instance of the configuration class.
      * @param <T> The type of the configuration class.
      */
-    public <T> T getConfig(Class<T> configClass) {
+    public synchronized <T> T getConfig(Class<T> configClass) {
         return getConfig(configClass, true);
     }
 
@@ -96,7 +100,7 @@ public class ConfigService {
      * @return The managed instance of the configuration class.
      * @param <T> The type of the configuration class.
      */
-    public <T> T getConfig(Class<T> configClass, boolean useCache) {
+    public synchronized <T> T getConfig(Class<T> configClass, boolean useCache) {
         Object managed = managedConfigs.get(configClass);
         if (managed != null && useCache) return configClass.cast(managed);
 
@@ -110,6 +114,19 @@ public class ConfigService {
     }
 
     /**
+     * Creates a new, unmanaged instance of a configuration class with the values currently loaded.
+     * <p>
+     * Unlike the managed instance, a snapshot is never changed by {@link #reload()}, so all of its values
+     * belong to the same version of the file. Use it to read config values consistently off the main thread.
+     * @param configClass The configuration class annotated with {@link com.zetaplugins.zetacore.config.annotation.ConfigFile}.
+     * @return A new instance of the configuration class.
+     * @param <T> The type of the configuration class.
+     */
+    public synchronized <T> T getSnapshot(Class<T> configClass) {
+        return mapConfig(configClass, true);
+    }
+
+    /**
      * Reload all configuration files from disk.
      * <p>
      * Clears the file cache, reloads the plugin's default config and updates every managed config instance in place.
@@ -117,7 +134,7 @@ public class ConfigService {
      * If any config fails to map, no managed instance is changed.
      * @throws ConfigMappingException If a configuration file cannot be mapped.
      */
-    public void reload() {
+    public synchronized void reload() {
         configCache.clear();
         plugin.reloadConfig();
 
@@ -186,7 +203,7 @@ public class ConfigService {
      * @param config The PluginConfig enum representing the configuration file to save.
      * @param fileConfig The FileConfiguration object to save.
      */
-    public void saveConfig(PluginConfigFile config, FileConfiguration fileConfig) {
+    public synchronized void saveConfig(PluginConfigFile config, FileConfiguration fileConfig) {
         saveFileConfigToFileName(config.getFileName(), fileConfig);
     }
 
@@ -195,7 +212,7 @@ public class ConfigService {
      * @param fileName The name of the configuration file (without the .yml extension).
      * @param fileConfig The FileConfiguration object to save.
      */
-    public void saveConfig(String fileName, FileConfiguration fileConfig) {
+    public synchronized void saveConfig(String fileName, FileConfiguration fileConfig) {
         saveFileConfigToFileName(fileName, fileConfig);
     }
 
@@ -223,7 +240,7 @@ public class ConfigService {
     /**
      * Clear the configuration cache.
      */
-    public void clearCache() {
+    public synchronized void clearCache() {
         configCache.clear();
     }
 }

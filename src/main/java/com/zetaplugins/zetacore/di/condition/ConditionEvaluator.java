@@ -6,17 +6,17 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 import java.lang.reflect.AnnotatedElement;
 import java.lang.reflect.Constructor;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Evaluates {@link Conditional}, {@link ConditionalOnPlugin} and {@link ConditionalOnMissingPlugin} on classes and methods.
- * The result of each {@link Condition} class is cached.
+ * The result of each {@link Condition} class is cached. The evaluator is thread-safe.
  */
 public class ConditionEvaluator {
     private final JavaPlugin plugin;
     private final ServiceRegistry registry;
-    private final Map<Class<? extends Condition>, Boolean> results = new HashMap<>();
+    private final Map<Class<? extends Condition>, Boolean> results = new ConcurrentHashMap<>();
 
     /**
      * Creates an evaluator.
@@ -83,8 +83,8 @@ public class ConditionEvaluator {
         } catch (Exception e) {
             throw new ServiceException("Failed to evaluate condition " + conditionClass.getName(), e);
         }
-        results.put(conditionClass, result);
-        return result;
+        Boolean previous = results.putIfAbsent(conditionClass, result);
+        return previous != null ? previous : result;
     }
 
     private Condition instantiate(Class<? extends Condition> conditionClass) throws ReflectiveOperationException {
